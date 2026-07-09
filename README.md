@@ -214,7 +214,15 @@ Ataques específicos de agentes con acceso a herramientas (terminal, sistema de 
 
 ## Autores
 
-**Aleja** & **Juan**  
+| Nombre | |
+|--------|--|
+| Juan Montero Gómez | |
+| Rugerio Fernández Cobos Fanny B. | |
+| Fabiola García Gonzalo | |
+| Pedro González Hernanz | |
+| Florencia María Belén García | |
+| Alejandra Meyers Otero | |
+
 *Máster en Ciberseguridad — 2024-25*
 
 ---
