@@ -223,7 +223,7 @@ Ataques específicos de agentes con acceso a herramientas (terminal, sistema de 
 | Florencia María Belén García | |
 | Alejandra Meyers Otero | |
 
-*Máster en Ciberseguridad — 2024-25*
+*Máster en Ciberseguridad — 2025-26*
 
 ---
 
