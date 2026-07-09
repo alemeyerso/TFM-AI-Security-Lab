@@ -128,6 +128,15 @@ services:
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - NUM_CTX=${NUM_CTX:-127000}
+      # GitHub Sync — configura en docker/.env
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_REPO=${GITHUB_REPO:-alemeyerso/TFM-AI-Security-Lab}
+      - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
+    
+    # Carga variables de docker/.env automáticamente
+    env_file:
+      - path: ./docker/.env
+        required: false   # no falla si no existe
     
     volumes:
       # Montar lab/ para leer payloads y escribir resultados en tiempo real

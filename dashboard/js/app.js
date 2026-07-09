@@ -728,12 +728,110 @@ function startAutoRefresh() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   SYNC MODAL — Compartir resultados a GitHub con 1 clic
+   ══════════════════════════════════════════════════════════════ */
+function setupSyncModal() {
+  const backdrop    = document.getElementById('syncModalBackdrop');
+  const btnOpen     = document.getElementById('btnSync');
+  const btnCancel   = document.getElementById('syncCancelBtn');
+  const btnConfirm  = document.getElementById('syncConfirmBtn');
+  const statusBox   = document.getElementById('syncStatusBox');
+  const statusText  = document.getElementById('syncStatusText');
+  const fileList    = document.getElementById('syncFileList');
+  const confirmLbl  = document.getElementById('syncConfirmLabel');
+  const authorInput = document.getElementById('syncAuthorInput');
+
+  function closeSyncModal() {
+    if (backdrop) backdrop.classList.remove('open');
+  }
+
+  function setStatus(msg, type = '') {
+    if (!statusBox || !statusText) return;
+    statusBox.className = `sync-status-box${type ? ' ' + type : ''}`;
+    statusText.innerHTML = msg;
+  }
+
+  async function openSyncModal() {
+    if (!backdrop) return;
+    backdrop.classList.add('open');
+    if (fileList) fileList.innerHTML = '';
+    if (confirmLbl) confirmLbl.textContent = 'Subir a GitHub';
+    if (btnConfirm) btnConfirm.disabled = true;
+    setStatus('⏳ Comprobando conexión con GitHub...');
+
+    try {
+      const data = await apiFetch('/api/sync/status');
+      if (data.configured) {
+        // Contar ficheros de resultados disponibles
+        let resultCount = 0;
+        try {
+          const r = await apiFetch('/api/results');
+          resultCount = r.results?.length || 0;
+        } catch (_) {}
+
+        if (resultCount === 0) {
+          setStatus('ℹ️ No hay resultados que subir aún. Ejecuta algún ataque primero.', 'warn');
+          if (btnConfirm) btnConfirm.disabled = true;
+        } else {
+          setStatus(`${data.message}<br><small style="opacity:.7">Rama: <strong>${data.branch}</strong> · ${resultCount} fichero(s) listo(s)</small>`, 'ok');
+          if (btnConfirm) btnConfirm.disabled = false;
+        }
+      } else {
+        setStatus(`${data.message}<br><small style="opacity:.7">Añade tu token en <code>docker/.env</code> → <code>GITHUB_TOKEN=ghp_xxx</code></small>`, 'error');
+        if (btnConfirm) btnConfirm.disabled = true;
+      }
+    } catch (err) {
+      setStatus(`❌ No se pudo contactar con la API (${err.message})`, 'error');
+      if (btnConfirm) btnConfirm.disabled = true;
+    }
+  }
+
+  btnOpen?.addEventListener('click', openSyncModal);
+  btnCancel?.addEventListener('click', closeSyncModal);
+  backdrop?.addEventListener('click', e => { if (e.target === backdrop) closeSyncModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSyncModal(); });
+
+  btnConfirm?.addEventListener('click', async () => {
+    const author = authorInput?.value.trim() || 'Compañero del Lab';
+    if (btnConfirm) btnConfirm.disabled = true;
+    if (confirmLbl) confirmLbl.textContent = '⏳ Subiendo...';
+    setStatus('⏳ Subiendo ficheros a GitHub...');
+    if (fileList) fileList.innerHTML = '';
+
+    try {
+      const res = await apiFetch(`/api/sync?author=${encodeURIComponent(author)}`, { method: 'POST' });
+      const ok = res.uploaded > 0 && res.errors?.length === 0;
+      setStatus(res.message, ok ? 'ok' : 'warn');
+
+      if (fileList && res.files?.length > 0) {
+        fileList.innerHTML = res.files.map(f => `<div class="sync-ok">✅ ${f}</div>`).join('') +
+          (res.errors || []).map(e => `<div class="sync-err">❌ ${e.file || e}</div>`).join('');
+      }
+
+      if (ok) {
+        showToast(`✅ ${res.uploaded} resultado(s) compartido(s) con el equipo`, 'info');
+        if (confirmLbl) confirmLbl.textContent = '¡Subido! ✓';
+        // Actualizar gitignore para que los resultados puedan subirse
+      } else {
+        if (confirmLbl) confirmLbl.textContent = 'Reintentar';
+        if (btnConfirm) btnConfirm.disabled = false;
+      }
+    } catch (err) {
+      setStatus(`❌ Error: ${err.message}`, 'error');
+      if (confirmLbl) confirmLbl.textContent = 'Reintentar';
+      if (btnConfirm) btnConfirm.disabled = false;
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
    INIT
    ══════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupFilters();
   setupModal();
+  setupSyncModal();
 
   // Botón Demo
   document.getElementById('btnDemo')?.addEventListener('click', () => {
@@ -743,6 +841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Botones Export
   document.getElementById('btnExportCSV')?.addEventListener('click', exportCSV);
+
   document.getElementById('btnExportCSV2')?.addEventListener('click', exportCSV);
   document.getElementById('btnExportJSON')?.addEventListener('click', exportJSON);
 

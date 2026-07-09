@@ -15,10 +15,13 @@ Endpoints:
   GET  /api/results
   GET  /api/results/{filename}
   GET  /api/demo
+  POST /api/sync          ← sube resultados a GitHub (1 clic)
+  GET  /api/sync/status   ← comprueba si el token está configurado
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -39,6 +42,17 @@ BASE_DIR     = Path(__file__).parent          # lab/
 PAYLOADS_DIR = BASE_DIR / "payloads"
 RESULTS_DIR  = BASE_DIR / "results"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+
+# ─────────────────────────────────────────────
+# GITHUB SYNC CONFIG
+# Configura en docker/.env:
+#   GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+#   GITHUB_REPO=alemeyerso/TFM-AI-Security-Lab
+# ─────────────────────────────────────────────
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+GITHUB_REPO  = os.environ.get("GITHUB_REPO", "alemeyerso/TFM-AI-Security-Lab")
+GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main")
+GITHUB_API   = "https://api.github.com"
 
 # ─────────────────────────────────────────────
 # OLLAMA CONFIG
@@ -560,6 +574,123 @@ async def api_result_detail(filename: str):
     if not fpath.exists() or not fpath.suffix == ".json":
         raise HTTPException(status_code=404, detail=f"Resultado '{safe_name}' no encontrado.")
     return json.loads(fpath.read_text(encoding="utf-8"))
+
+
+# ─────────────────────────────────────────────
+# GITHUB SYNC — Subir resultados con 1 clic
+# ─────────────────────────────────────────────
+async def _github_get_file_sha(client: httpx.AsyncClient, path: str) -> str | None:
+    """Get the SHA of an existing file in GitHub (needed to update it)."""
+    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}?ref={GITHUB_BRANCH}"
+    try:
+        r = await client.get(url, headers=headers)
+        if r.status_code == 200:
+            return r.json().get("sha")
+    except Exception:
+        pass
+    return None
+
+
+async def _github_upload_file(client: httpx.AsyncClient, path: str, content: bytes, message: str) -> dict:
+    """Create or update a file in GitHub via REST API."""
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    url = f"{GITHUB_API}/repos/{GITHUB_REPO}/contents/{path}"
+    sha = await _github_get_file_sha(client, path)
+    payload: dict = {
+        "message": message,
+        "content": base64.b64encode(content).decode(),
+        "branch": GITHUB_BRANCH,
+    }
+    if sha:
+        payload["sha"] = sha
+    r = await client.put(url, headers=headers, json=payload)
+    return {"path": path, "status": r.status_code, "ok": r.status_code in (200, 201)}
+
+
+@app.get("/api/sync/status")
+async def api_sync_status():
+    """Check if GitHub sync is configured and the token is valid."""
+    if not GITHUB_TOKEN:
+        return {
+            "configured": False,
+            "message": "⚠ GITHUB_TOKEN no configurado. Edita docker/.env y añade tu token.",
+            "repo": GITHUB_REPO,
+        }
+    # Verify token by fetching repo info
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            headers = {"Authorization": f"Bearer {GITHUB_TOKEN}", "Accept": "application/vnd.github+json"}
+            r = await client.get(f"{GITHUB_API}/repos/{GITHUB_REPO}", headers=headers)
+            if r.status_code == 200:
+                repo_data = r.json()
+                return {
+                    "configured": True,
+                    "message": f"✅ Conectado a {GITHUB_REPO}",
+                    "repo": GITHUB_REPO,
+                    "branch": GITHUB_BRANCH,
+                    "permissions": repo_data.get("permissions", {}),
+                }
+            elif r.status_code == 401:
+                return {"configured": False, "message": "❌ Token inválido o expirado.", "repo": GITHUB_REPO}
+            elif r.status_code == 404:
+                return {"configured": False, "message": f"❌ Repo '{GITHUB_REPO}' no encontrado.", "repo": GITHUB_REPO}
+        except Exception as e:
+            return {"configured": False, "message": f"❌ Error de conexión: {e}", "repo": GITHUB_REPO}
+    return {"configured": False, "message": "❌ Error desconocido.", "repo": GITHUB_REPO}
+
+
+@app.post("/api/sync")
+async def api_sync(author: str = "Compañero del Lab"):
+    """
+    Upload all result files from lab/results/ to GitHub via REST API.
+    No git installation required — uses GitHub REST API directly.
+    Configure GITHUB_TOKEN in docker/.env before using.
+    """
+    if not GITHUB_TOKEN:
+        raise HTTPException(
+            status_code=503,
+            detail="GITHUB_TOKEN no configurado. Edita docker/.env con tu Personal Access Token.",
+        )
+
+    result_files = sorted(RESULTS_DIR.glob("*.json"))
+    if not result_files:
+        return {"uploaded": 0, "files": [], "message": "No hay resultados que subir todavía."}
+
+    ts  = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    uploaded = []
+    errors   = []
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for fpath in result_files:
+            try:
+                content = fpath.read_bytes()
+                github_path = f"lab/results/{fpath.name}"
+                commit_msg  = f"results: {fpath.stem} — sync by {author} [{ts}]"
+                result = await _github_upload_file(client, github_path, content, commit_msg)
+                if result["ok"]:
+                    uploaded.append(fpath.name)
+                else:
+                    errors.append({"file": fpath.name, "status": result["status"]})
+            except Exception as exc:
+                errors.append({"file": fpath.name, "error": str(exc)})
+
+    return {
+        "uploaded": len(uploaded),
+        "files": uploaded,
+        "errors": errors,
+        "repo": GITHUB_REPO,
+        "branch": GITHUB_BRANCH,
+        "message": (
+            f"✅ {len(uploaded)} fichero(s) subido(s) a GitHub correctamente."
+            if not errors
+            else f"⚠ {len(uploaded)} subidos, {len(errors)} con error."
+        ),
+    }
 
 
 # ─────────────────────────────────────────────
