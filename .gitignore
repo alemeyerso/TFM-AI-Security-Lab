@@ -1,0 +1,60 @@
+# Archivos generados por el laboratorio (no subir al repo)
+lab/results/*.json
+lab/logs/*.log
+
+# Notebooks ejecutados con outputs (opcional: comentar si queréis subir los outputs)
+# notebooks/*.ipynb  ← dejar comentado para subir los notebooks SIN ejecutar
+
+# Entorno Python local
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Variables de entorno (contiene posibles credenciales)
+docker/.env
+.env
+*.env.local
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Pytest y cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Exportaciones de notebooks (generadas localmente)
+notebooks/*.html
+notebooks/*.pdf
+
+# Modelos de Ollama (demasiado grandes para git)
+*.gguf
+*.bin
+
+# Logs de Docker
+*.log

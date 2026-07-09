@@ -1,0 +1,186 @@
+version: '3.8'
+
+# =============================================================
+# AI Security Lab — Docker Compose
+# TFM 2025 · Aleja & Juan
+#
+# IMPORTANTE: Ollama debe estar corriendo en el HOST, no aquí.
+# Instala Ollama en tu máquina y descarga los modelos antes
+# de ejecutar este compose.
+#
+# Uso:
+#   docker compose -f docker/docker-compose.yml up -d           # Arrancar todo
+#   docker compose -f docker/docker-compose.yml up api dashboard # API + Dashboard
+#   docker compose -f docker/docker-compose.yml run lab --demo  # Demo del lab
+#   docker compose -f docker/docker-compose.yml run lab --model gemma4:e2b --all
+# =============================================================
+
+services:
+
+  # ── LABORATORIO PYTHON ────────────────────────────────────
+  lab:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: ai-security-lab
+    
+    volumes:
+      # Persistir resultados en el host
+      - ../lab/results:/lab/lab/results
+      # Montar payloads del host
+      - ../lab/payloads:/lab/lab/payloads
+      # Logs
+      - ../lab/logs:/lab/lab/logs
+    
+    environment:
+      # Ollama en el host (Windows/Mac)
+      - OLLAMA_HOST=host.docker.internal:11434
+      - DEFAULT_MODEL=${DEFAULT_MODEL:-gemma4:e2b}
+      - NUM_CTX=${NUM_CTX:-127000}
+      - RESULTS_DIR=/lab/lab/results
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    
+    # Para Linux: resuelve host.docker.internal a la IP del host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    # Permitir interacción en terminal
+    stdin_open: true
+    tty: true
+    
+    # Por defecto ejecuta el demo
+    command: python run_lab.py --demo
+    
+    # No reiniciar automáticamente (es un comando, no un servicio)
+    restart: "no"
+    
+    networks:
+      - lab-network
+
+  # ── DASHBOARD WEB ─────────────────────────────────────────
+  dashboard:
+    image: nginx:alpine
+    container_name: ai-security-dashboard
+    
+    ports:
+      - "${DASHBOARD_PORT:-8080}:80"
+    
+    volumes:
+      # Servir los archivos del dashboard
+      - ../dashboard:/usr/share/nginx/html:ro
+      # Configuración nginx personalizada
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    
+    # El dashboard siempre está disponible
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    networks:
+      - lab-network
+    
+    labels:
+      - "traefik.enable=false"
+
+  # ── JUPYTER LAB ───────────────────────────────────────────
+  jupyter:
+    image: jupyter/scipy-notebook:latest
+    container_name: ai-security-jupyter
+    
+    ports:
+      - "8888:8888"
+    
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=tfm2026
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - GRANT_SUDO=yes
+    
+    volumes:
+      - ../notebooks:/home/jovyan/notebooks
+      - ../lab:/home/jovyan/work/lab
+      - ../lab/results:/home/jovyan/work/lab/results
+    
+    # Para Linux: resuelve host.docker.internal a la IP del host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    restart: unless-stopped
+    
+    networks:
+      - lab-network
+
+  # ── API FASTAPI ────────────────────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: ai-security-api
+    
+    ports:
+      - "8000:8000"
+    
+    environment:
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - NUM_CTX=${NUM_CTX:-127000}
+    
+    volumes:
+      # Montar lab/ para leer payloads y escribir resultados en tiempo real
+      - ../lab:/app/lab
+    
+    # Para Linux: resuelve host.docker.internal a la IP del host
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    networks:
+      - lab-network
+
+networks:
+  lab-network:
+    driver: bridge
+    name: ai-security-network
+
+# =============================================================
+# COMANDOS ÚTILES:
+#
+# Arrancar todo:
+#   docker compose -f docker/docker-compose.yml up -d
+#
+# Solo el dashboard:
+#   docker compose -f docker/docker-compose.yml up -d dashboard
+#
+# API + Dashboard (para uso del panel live):
+#   docker compose -f docker/docker-compose.yml up -d api dashboard
+#
+# URLs de acceso:
+#   → Dashboard: http://localhost:8080
+#   → API Live:  http://localhost:8000/docs (Swagger UI)
+#   → Jupyter:   http://localhost:8888 (token: tfm2026)
+#
+# Ver logs en tiempo real:
+#   docker compose -f docker/docker-compose.yml logs -f api
+#
+# Parar todo:
+#   docker compose -f docker/docker-compose.yml down
+#
+# Reconstruir imagen API (tras cambios en server.py):
+#   docker compose -f docker/docker-compose.yml build api
+#   docker compose -f docker/docker-compose.yml up -d api
+#
+# Ejecutar evaluación completa:
+#   docker compose -f docker/docker-compose.yml run --rm lab \
+#     python run_lab.py --model gemma4:e2b --vectors all
+# =============================================================

@@ -1,0 +1,29 @@
+# Normalizar line endings automáticamente
+* text=auto
+
+# Forzar LF en scripts y código fuente
+*.py text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+
+# Notebooks Jupyter
+*.ipynb text eol=lf
+
+# Archivos de Docker
+Dockerfile text eol=lf
+Dockerfile.* text eol=lf
+*.conf text eol=lf
+
+# Archivos binarios (no modificar)
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
