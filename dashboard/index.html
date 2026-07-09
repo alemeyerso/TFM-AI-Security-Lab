@@ -79,11 +79,7 @@
     </ul>
 
     <div class="sidebar-footer">
-      <button class="btn-ghost" id="btnLoadFile">
-        <svg viewBox="0 0 24 24"><path d="M4 16l4-4 4 4M12 12V4M20 16v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Cargar JSON
-      </button>
-      <input type="file" id="fileInput" accept=".json" multiple style="display:none">
+      <div style="font-size:10px;color:var(--text-muted);text-align:center;opacity:.6;padding:4px 0">Auto-refresh · 30s</div>
     </div>
   </nav>
 
@@ -107,8 +103,8 @@
       <div class="header-right">
         <div class="header-actions">
           <button class="btn-secondary" id="btnDemo">
-            <svg viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
-            Demo Data
+            <svg viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Demo (Presentación)
           </button>
           <button class="btn-primary" id="btnExportCSV">
             <svg viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -125,7 +121,10 @@
           <span class="section-icon">📂</span>
           Sesiones de Evaluación
         </h2>
-        <div class="session-count" id="sessionCount">0 sesiones cargadas</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div class="session-count" id="sessionCount">0 sesiones cargadas</div>
+          <div id="lastRefresh" style="font-size:11px;color:var(--text-muted);opacity:.7"></div>
+        </div>
       </div>
       <div class="sessions-grid" id="sessionsGrid">
         <div class="session-empty" id="sessionEmpty">
@@ -300,7 +299,7 @@
               <th>Severidad</th>
               <th>Outcome</th>
               <th>Latencia</th>
-              <th>Defensa</th>
+              <th>MITRE ATLAS</th>
               <th></th>
             </tr>
           </thead>
@@ -450,9 +449,10 @@
     <!-- FOOTER -->
     <footer class="page-footer">
       <div class="footer-left">
-        <p class="footer-title">AI Security Lab — TFM 2025</p>
+        <p class="footer-title">AI Security Lab — TFM 2025-26</p>
         <p class="footer-sub">Evaluación de Robustez de Agentes IA frente a Prompt Injection · Ollama + Gemma 4</p>
-        <p class="footer-authors">Autores: Aleja &amp; Juan · Universidad &lt;nombre&gt; · Curso 2024-25</p>
+        <p class="footer-authors">Juan Montero Gómez · Rugerio Fernández Cobos Fanny B. · Fabiola García Gonzalo · Pedro González Hernanz · Florencia María Belén García · Alejandra Meyers Otero</p>
+        <p class="footer-authors" style="margin-top:4px;opacity:0.6">Universidad Complutense de Madrid (UCM) · Máster en Ciberseguridad · Curso 2025-26</p>
       </div>
       <div class="footer-right">
         <button class="btn-ghost" id="btnExportJSON">

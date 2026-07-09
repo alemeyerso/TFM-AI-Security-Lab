@@ -48,8 +48,9 @@ services:
     stdin_open: true
     tty: true
     
-    # Por defecto ejecuta el demo
-    command: python run_lab.py --demo
+    # No ejecutar automáticamente — lanzar ataques explícitamente:
+    # docker compose run --rm lab python run_lab.py --model gemma4:e2b --all
+    command: python run_lab.py --help
     
     # No reiniciar automáticamente (es un comando, no un servicio)
     restart: "no"

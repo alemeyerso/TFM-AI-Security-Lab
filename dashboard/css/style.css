@@ -1772,3 +1772,235 @@ body {
 .sidebar-status .status-item + .status-item {
   margin-top: 8px;
 }
+
+/* ── MITRE ATLAS BADGES ─────────────────────────────────────── */
+.mitre-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--purple);
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* ── SESSION STATS (new layout) ─────────────────────────────── */
+.session-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.session-stat {
+  text-align: center;
+  padding: 8px 4px;
+  background: rgba(255,255,255,0.02);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ss-val {
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+}
+
+.ss-lbl {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── SESSION DATE ────────────────────────────────────────────── */
+.session-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── SESSION ROBUSTNESS BADGE ────────────────────────────────── */
+.session-robustness {
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.session-robustness.robust     { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(0,212,170,0.3);  }
+.session-robustness.acceptable { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(246,201,14,0.3); }
+.session-robustness.vulnerable { background: rgba(255,109,0,0.12); color: #ff6d00;   border: 1px solid rgba(255,109,0,0.3);  }
+.session-robustness.critical   { background: var(--red-dim);    color: var(--red);    border: 1px solid rgba(255,51,102,0.3); }
+
+/* ── SESSION VECTOR BARS ─────────────────────────────────────── */
+.session-vector-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+.session-vector-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.svb-icon {
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.svb-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.svb-fill {
+  height: 100%;
+  background: var(--grad-danger);
+  border-radius: 99px;
+  transition: width 0.5s var(--ease-out);
+}
+
+.svb-pct {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  width: 26px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ── CATEGORY TAG ────────────────────────────────────────────── */
+.category-tag {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+/* ── LATENCY CELL ─────────────────────────────────────────────── */
+.latency-cell {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ── TEST PAYLOAD NAME ─────────────────────────────────────────── */
+.test-payload-name {
+  max-width: 240px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ── DONUT LEGEND ─────────────────────────────────────────────── */
+.donut-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 4px 0;
+}
+
+.donut-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donut-legend-label {
+  flex: 1;
+}
+
+.donut-legend-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+/* ── TOAST NOTIFICATIONS ──────────────────────────────────────── */
+.toast-notification {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 9999;
+  padding: 13px 20px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 340px;
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.toast-notification.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast-info  { background: var(--bg-card); color: var(--text-primary); }
+.toast-error { background: rgba(255,51,102,0.15); color: var(--red); border-color: rgba(255,51,102,0.3); }
+
+/* ── COMPARE EMPTY STATE ──────────────────────────────────────── */
+.compare-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  background: var(--glass-bg);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* ── TABLE EMPTY ROW ─────────────────────────────────────────── */
+.table-empty-row td { border: none !important; }
+.table-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.table-empty span { font-size: 32px; opacity: 0.5; }
+
