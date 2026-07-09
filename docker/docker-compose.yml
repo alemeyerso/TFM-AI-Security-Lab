@@ -128,8 +128,8 @@ services:
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - NUM_CTX=${NUM_CTX:-127000}
-      # GitHub Sync — configura en docker/.env
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      # GitHub Sync — token compartido del equipo TFM
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-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}
       - GITHUB_REPO=${GITHUB_REPO:-alemeyerso/TFM-AI-Security-Lab}
       - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
     
