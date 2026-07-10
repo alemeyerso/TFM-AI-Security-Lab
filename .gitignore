@@ -1,0 +1,54 @@
+# Resultados JSON (son muy grandes)
+lab/results/*.json
+lab/logs/*.log
+
+# Entorno Python
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Variables de entorno
+docker/.env
+.env
+*.env.local
+
+# Editores e IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Tests
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+notebooks/*.html
+notebooks/*.pdf
+
+# Modelos (demasiado grandes)
+*.gguf
+*.bin
+
+# Logs
+*.log
+
+# Archivos temporales de Word
+~$*.docx

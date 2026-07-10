@@ -1,0 +1,29 @@
+ollama>=0.4.0
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+rich>=13.7.0
+click>=8.1.7
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+httpx>=0.26.0
+tenacity>=8.2.3
+
+# ── API Server (FastAPI) ──────────────────────────────────────
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+
+# ── Jupyter ───────────────────────────────────────────────────
+jupyter>=1.1.0
+jupyterlab>=4.2.0
+ipykernel>=6.29.0
+
+# ── Notebook 05 / análisis experimental ─────────────────────
+numpy>=1.26.0
+pandas>=2.0.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+nbconvert>=7.16.0
+scipy>=1.11.0
+statsmodels>=0.14.0
