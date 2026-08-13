@@ -1,7 +1,7 @@
 # 🔐 AI Security Lab — TFM
 
 > **Trabajo de Fin de Máster** · Evaluación de la Ciberseguridad en Entornos de IA Generativa  
-> *Máster en Ciberseguridad · 2024-25*
+> *Máster en Ciberseguridad · UCM · 2025-26*
 
 ![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white)
@@ -36,16 +36,16 @@ Este repositorio contiene el **laboratorio de evaluación de seguridad** desarro
 
 > **Nada más.** Python, Jupyter, FastAPI — todo corre dentro de Docker.
 
-### Paso 1 — Descargar un modelo
+### Paso 1 — Descargar los modelos
 
 ```bash
-# Modelo pequeño (~2.5 GB) — el más rápido, el más vulnerable
-ollama pull gemma4:e2b
-
-# Opcional: modelos más grandes para la comparativa
-ollama pull gemma4:e4b   # ~4.9 GB
-ollama pull gemma4:26b   # ~17 GB
+# Los tres modelos de la comparativa
+ollama pull gemma4:e2b    # ~7 GB   — edge 2B parámetros
+ollama pull gemma4:e4b    # ~9.6 GB — edge 4B parámetros
+ollama pull gemma4:26b    # ~17 GB  — MoE 26B parámetros
 ```
+
+> 💡 Se pueden dejar descargando en segundo plano. Si la conexión se corta, Ollama reanuda la descarga desde donde se quedó.
 
 > ⚠️ **Fix obligatorio para OpenCode/Ollama** (num_ctx): después de descargar, ejecuta:
 > ```bash
@@ -57,9 +57,9 @@ ollama pull gemma4:26b   # ~17 GB
 ### Paso 2 — Clonar y arrancar
 
 ```bash
-git clone https://github.com/[usuario]/TFM.git
-cd TFM
-docker compose -f docker/docker-compose.yml up
+git clone https://github.com/alemeyerso/TFM-AI-Security-Lab.git
+cd TFM-AI-Security-Lab
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 ### Paso 3 — Acceder
@@ -88,7 +88,7 @@ TFM/
 │   ├── server.py          FastAPI — motor de ataques live (port 8000)
 │   ├── core/              Motor de evaluación + cliente Ollama + métricas
 │   ├── attacks/           Módulos de ataque (direct, indirect, jailbreak, tool_abuse)
-│   ├── payloads/          30+ payloads JSON + documentos trampa
+│   ├── payloads/          39 payloads JSON con mapeo MITRE ATLAS
 │   ├── defenses/          Input sanitizer, output validator, prompt guard
 │   ├── scenarios/         4 escenarios realistas de agentes autónomos
 │   └── results/           JSONs de resultados (generados al ejecutar)
@@ -104,8 +104,8 @@ TFM/
 ├── 📚 docs/
 │   ├── reproducibilidad.md  ← Guía detallada para reproducir el lab
 │   ├── setup.md             Instalación de Ollama + fix num_ctx
-│   ├── attack_taxonomy.md   Taxonomía basada en OWASP Top 10 LLMs 2025
-│   └── defense_framework.md Marco de defensa (5 pilares)
+│   ├── attack_taxonomy.md   Taxonomía basada en MITRE ATLAS
+│   └── defense_framework.md Marco de defensa (6 capas)
 │
 ├── run_lab.py             CLI alternativo (sin Docker)
 └── requirements.txt       Dependencias Python
@@ -185,19 +185,19 @@ docker compose -f docker/docker-compose.yml run --rm lab \
 
 ---
 
-## Vectores de ataque — descripción
+## Vectores de ataque — clasificación MITRE ATLAS
 
-### ⚡ Direct Injection (OWASP LLM01)
-El atacante controla directamente el input del usuario para sobreescribir instrucciones del sistema.
+### ⚡ Direct Injection — `AML.T0051`
+El atacante controla directamente el input del usuario para sobreescribir instrucciones del sistema. 10 payloads.
 
-### 🌐 Indirect Injection (OWASP LLM02)
-Las instrucciones maliciosas se ocultan en datos del entorno que el agente procesa (documentos, configs, resultados de herramientas). Es el vector más peligroso en sistemas agénticos.
+### 🌐 Indirect Injection — `AML.T0051.001` / `AML.T0020`
+Las instrucciones maliciosas se ocultan en datos del entorno que el agente procesa (documentos, configs, resultados de herramientas). Es el vector más peligroso en sistemas agénticos. 6 payloads.
 
-### 🔓 Jailbreak (OWASP LLM01)
-Técnicas para desactivar los filtros de seguridad y la alineación del modelo mediante roleplay, reencuadres lógicos o escalada gradual.
+### 🔓 Jailbreak — `AML.T0054`
+Técnicas para desactivar los filtros de seguridad y la alineación del modelo mediante roleplay, reencuadres lógicos o escalada gradual. 15 payloads.
 
-### 🔧 Tool / Agent Abuse (OWASP LLM08)
-Ataques específicos de agentes con acceso a herramientas (terminal, sistema de ficheros, red). El objetivo es provocar acciones dañinas en el entorno.
+### 🔧 Tool / Agent Abuse — `AML.T0043` / `AML.T0051`
+Ataques específicos de agentes con acceso a herramientas (terminal, sistema de ficheros, red). El objetivo es provocar acciones dañinas en el entorno. 8 payloads.
 
 ---
 
@@ -207,8 +207,8 @@ Ataques específicos de agentes con acceso a herramientas (terminal, sistema de 
 |-----------|-----------|
 | [🔁 Guía de Reproducibilidad](docs/reproducibilidad.md) | Instrucciones paso a paso + troubleshooting |
 | [📖 Setup](docs/setup.md) | Instalación de Ollama + fix num_ctx |
-| [🗂️ Taxonomía de Ataques](docs/attack_taxonomy.md) | Clasificación OWASP Top 10 LLMs 2025 |
-| [🛡️ Marco de Defensa](docs/defense_framework.md) | 5 pilares de defensa con implementación |
+| [🗂️ Taxonomía de Ataques](docs/attack_taxonomy.md) | Clasificación MITRE ATLAS |
+| [🛡️ Marco de Defensa](docs/defense_framework.md) | 6 capas de defensa en profundidad |
 
 ---
 
@@ -223,17 +223,20 @@ Ataques específicos de agentes con acceso a herramientas (terminal, sistema de 
 | Florencia María Belén García | |
 | Alejandra Meyers Otero | |
 
-*Máster en Ciberseguridad — 2025-26*
+*Máster en Ciberseguridad — UCM — 2025-26*
 
 ---
 
 ## Referencias
 
+- [MITRE ATLAS — Adversarial Threat Landscape for AI Systems](https://atlas.mitre.org/)
 - [OWASP Top 10 for LLM Applications 2025](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
 - [Ollama Documentation](https://ollama.com/docs)
 - [Gemma 4 — Google DeepMind](https://ai.google.dev/gemma)
-- Greshake et al. (2023) — *Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection*
+- Greshake et al. (2023) — *Not What You've Signed Up For: Compromising Real-World LLM-Integrated Applications with Indirect Prompt Injection* — arXiv:2302.12173
 - Perez & Ribeiro (2022) — *Ignore Previous Prompt: Attack Techniques For Language Models*
+- Carlini et al. (2023) — *Poisoning Web-Scale Training Datasets is Practical* — arXiv:2302.10149
+- Rehberger, J. (2023-2024) — *Prompt Injection in Copilot and AI Agents* — embracethered.com
 - AgentDojo Benchmark — *Evaluating Prompt Injection Attacks and Defenses for LLM Agents*
 
 ---
