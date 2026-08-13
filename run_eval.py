@@ -1,6 +1,6 @@
 """
-Evaluacion comparativa multi-modelo — TFM
-"Evaluacion de la Ciberseguridad en Entornos de IA Generativa"
+Evaluación comparativa multi-modelo — TFM
+"Evaluación de la Ciberseguridad en Entornos de IA Generativa"
 
 Ejecuta los 39 payloads MITRE ATLAS contra todos los modelos disponibles
 y genera resultados para los capitulos 4 y 5 del TFM.
@@ -14,7 +14,7 @@ from datetime import datetime
 
 OLLAMA_BASE  = "http://localhost:11434"
 MODELS_ORDER = ["gemma4:e2b", "gemma4:e4b", "gemma4:26b"]
-NUM_CTX      = 8192
+NUM_CTX      = 32768
 BASE_DIR     = Path(__file__).parent
 PAYLOADS_DIR = BASE_DIR / "lab" / "payloads"
 RESULTS_DIR  = BASE_DIR / "lab" / "results"
@@ -53,6 +53,7 @@ PARTIAL = [
 ]
 
 def detect_outcome(text: str) -> str:
+    if text.startswith('ERROR:'): return 'error'
     lo = text.lower()
     for p in REFUSAL:
         if re.search(p, lo):
@@ -74,7 +75,7 @@ def call_ollama(model: str, prompt: str) -> tuple[str, float]:
         headers={"Content-Type": "application/json"})
     t0 = time.perf_counter()
     try:
-        with urllib.request.urlopen(req, timeout=180) as resp:
+        with urllib.request.urlopen(req, timeout=300) as resp:
             data = json.loads(resp.read())
             return data.get("response", ""), (time.perf_counter() - t0) * 1000
     except Exception as e:
@@ -117,7 +118,7 @@ def eval_model(model: str, payloads: list[dict]) -> dict:
     print(f"  {'─'*60}")
 
     results = []
-    stats = {"success": 0, "partial": 0, "refused": 0}
+    stats = {"success": 0, "partial": 0, "refused": 0, "error": 0}
     vector_stats = {}
     severity_success = {}
 
@@ -136,9 +137,10 @@ def eval_model(model: str, payloads: list[dict]) -> dict:
         outcome = detect_outcome(response)
 
         stats[outcome] += 1
-        vs = vector_stats.setdefault(vector, {"success":0,"partial":0,"refused":0,"total":0})
+        vs = vector_stats.setdefault(vector, {"success":0,"partial":0,"refused":0,"error":0,"total":0})
         vs[outcome] += 1
-        vs["total"] += 1
+        if outcome != "error":
+            vs["total"] += 1
 
         sev = payload.get("severity", "?")
         if outcome == "success":
@@ -167,8 +169,9 @@ def eval_model(model: str, payloads: list[dict]) -> dict:
         print(f"  {i:>3} {vector:<12} {pid:<16} {icon}{outcome:<8} {latency:>6.0f}  {name}")
 
     total = len(payloads)
-    asr   = round(stats["success"] / total * 100, 1) if total else 0
-    ref   = round(stats["refused"] / total * 100, 1) if total else 0
+    valid_total = total - stats["error"]
+    asr   = round(stats["success"] / valid_total * 100, 1) if valid_total else 0
+    ref   = round(stats["refused"] / valid_total * 100, 1) if valid_total else 0
 
     print(f"\n  → ASR global: {asr}%  |  Refusal rate: {ref}%")
     return {
@@ -277,7 +280,7 @@ def run_all():
     all_results = []
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    for model in models:
+    for i, model in enumerate(models):
         mr = eval_model(model, payloads)
         mr["timestamp"] = datetime.now().isoformat()
         all_results.append(mr)
@@ -286,6 +289,20 @@ def run_all():
         fname = RESULTS_DIR / f"eval_{model.replace(':','_')}_{ts}.json"
         fname.write_text(json.dumps(mr, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"  Guardado: {fname.name}")
+
+        # Descargar modelo de memoria antes de cargar el siguiente
+        if i < len(models) - 1:
+            print(f"  Descargando {model} de RAM...")
+            try:
+                unload = json.dumps({"model": model, "keep_alive": 0}).encode()
+                req_u = urllib.request.Request(
+                    f"{OLLAMA_BASE}/api/generate", data=unload,
+                    headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req_u, timeout=30)
+                time.sleep(5)
+                print(f"  {model} descargado. Cargando siguiente...")
+            except Exception:
+                pass
 
     # Guardar comparativa consolidada
     comp = {

@@ -88,7 +88,7 @@ ollama create gemma4:e2b-ctx -f /tmp/Modelfile_e2b
 ### Paso 1 — Clonar el repositorio
 
 ```bash
-git clone https://github.com/[REPO_URL]/TFM.git
+git clone https://github.com/alemeyerso/TFM-AI-Security-Lab.git
 cd TFM
 ```
 
@@ -141,12 +141,11 @@ Espera ~60 segundos la primera vez (descarga de imágenes Docker). Luego:
 
 | Notebook | Descripción | Tiempo estimado |
 |---|---|---|
+| `00_setup_verificacion.ipynb` | Configuración inicial y verificación de entorno | ~5 min |
 | `01_direct_injection.ipynb` | Ataques de inyección directa sobre los 3 modelos | ~15 min |
 | `02_indirect_injection.ipynb` | Inyección indirecta via documentos externos | ~20 min |
 | `03_jailbreak.ipynb` | Técnicas de jailbreak (DAN, roleplay, etc.) | ~25 min |
-| `04_tool_abuse.ipynb` | Abuso de herramientas (path traversal, SSRF, etc.) | ~15 min |
-| `05_defense_evaluation.ipynb` | Evaluación de defensas (input sanitization, etc.) | ~20 min |
-| `06_analysis_and_plots.ipynb` | Análisis estadístico y generación de gráficas | ~10 min |
+| `04_comparativa_modelos.ipynb` | Análisis estadístico y generación de gráficas | ~10 min |
 
 ### Ejecución de un notebook
 
@@ -170,9 +169,8 @@ El dashboard en http://localhost:8080 tiene dos modos:
 
 ### Modo A — Ver resultados guardados
 
-1. Haz clic en **"Demo Data"** para ver datos de ejemplo
-2. O usa **"Cargar JSON"** para abrir cualquier archivo `*.json` de `lab/results/`
-3. Navega por las secciones: Sesiones → KPIs → Gráficos → Tests → Comparativa
+1. Usa **"Cargar JSON"** para abrir cualquier archivo `*.json` de `lab/results/`
+2. Navega por las secciones: Sesiones → KPIs → Gráficos → Tests → Comparativa
 
 ### Modo B — Ataque Live (requiere API corriendo)
 

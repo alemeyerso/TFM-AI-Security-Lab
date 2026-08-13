@@ -58,3 +58,7 @@ notebooks/*.pdf
 
 # Logs de Docker
 *.log
+
+# Temp scripts
+test_ollama.py
+patch_eval.py

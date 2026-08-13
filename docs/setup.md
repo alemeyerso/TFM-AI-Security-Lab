@@ -362,10 +362,9 @@ docker compose -f docker/docker-compose.yml up -d dashboard
 
 ### Cómo usar el dashboard
 
-1. **Demo Data** — Carga automáticamente 3 sesiones de ejemplo al abrir
-2. **Cargar JSON** — Carga tus propios resultados desde `lab/results/*.json`
-3. **Panel de Sesiones** — Haz clic en una sesión para verla activa
-4. **Filtrar tests** — Usa los filtros de Vector/Outcome/Severidad
+1. **Cargar JSON** — Carga tus propios resultados desde `lab/results/*.json`
+2. **Panel de Sesiones** — Haz clic en una sesión para verla activa
+3. **Filtrar tests** — Usa los filtros de Vector/Outcome/Severidad
 5. **Ver detalle** — Clic en "Ver" en cualquier test para ver el prompt/respuesta completo
 6. **Comparativa** — Con 2+ sesiones cargadas, la sección inferior compara modelos
 7. **Exportar** — Descarga los datos en CSV o JSON

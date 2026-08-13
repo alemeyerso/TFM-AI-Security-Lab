@@ -22,8 +22,8 @@ const REFRESH_INTERVAL  = 30_000; // ms
    MITRE ATLAS — mapping vector → técnica
    ══════════════════════════════════════════════════════════════ */
 const MITRE = {
-  direct:     { id: 'AML.T0015',     name: 'Prompt Injection' },
-  indirect:   { id: 'AML.T0015.001', name: 'Indirect Prompt Injection' },
+  direct:     { id: 'AML.T0051.000', name: 'Direct Prompt Injection' },
+  indirect:   { id: 'AML.T0051.001', name: 'Indirect Prompt Injection' },
   jailbreak:  { id: 'AML.T0054',     name: 'LLM Jailbreak' },
   tool_abuse: { id: 'AML.T0043',     name: 'Tool Exploitation' },
 };

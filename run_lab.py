@@ -400,7 +400,7 @@ def _run_demo_mode(model: str, all_vectors: bool, vectors: list[str]) -> None:
 
     console.print(
         "\n[dim]Los archivos JSON están listos para el dashboard.[/dim]\n"
-        "[dim]Ejecuta el dashboard con: streamlit run dashboard/app.py[/dim]"
+        "[dim]Visualiza los resultados en el dashboard en: http://localhost:8080[/dim]"
     )
 
 
