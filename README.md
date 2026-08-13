@@ -108,7 +108,7 @@ TFM/
 │   └── defense_framework.md Marco de defensa (6 capas)
 │
 ├── run_lab.py             CLI alternativo (sin Docker)
-├── run_eval.py            Script de evaluación masiva
+
 └── requirements.txt       Dependencias Python
 ```
 

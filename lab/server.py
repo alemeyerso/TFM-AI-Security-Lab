@@ -478,8 +478,8 @@ async def api_result_detail(filename: str):
         raise HTTPException(status_code=404, detail=f"Resultado '{safe_name}' no encontrado.")
     data = json.loads(fpath.read_text(encoding="utf-8"))
 
-    # ── Normalize eval format (run_eval.py) → dashboard format ──
-    # run_eval.py uses "results" with fields: name, mitre_id, mitre_name, ...
+    # ── Normalize batch eval format → dashboard format ──
+    # Batch results use "results" with fields: name, mitre_id, mitre_name, ...
     # Dashboard expects "tests" with fields: payload_name, mitre, ...
     if "results" in data and "tests" not in data:
         tests = []

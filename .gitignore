@@ -62,3 +62,12 @@ notebooks/*.pdf
 # Temp scripts
 test_ollama.py
 patch_eval.py
+
+# Script de evaluacion (uso interno, no entregar)
+run_eval.py
+patch_eval.py
+test_ollama.py
+
+# Resultados de evaluacion batch (no entregar)
+lab/results/eval_*.json
+lab/results/comparativa_*.json
