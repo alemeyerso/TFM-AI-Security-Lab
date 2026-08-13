@@ -158,9 +158,6 @@ docker compose -f docker/docker-compose.yml run --rm lab \
 docker compose -f docker/docker-compose.yml run --rm lab \
   python run_lab.py --model gemma4:e2b --vector jailbreak
 
-# Demo sin Ollama
-docker compose -f docker/docker-compose.yml run --rm lab \
-  python run_lab.py --demo
 ```
 
 ---

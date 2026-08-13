@@ -7,7 +7,7 @@
  *          Florencia María Belén García · Alejandra Meyers Otero
  *
  * API-driven — sin datos hardcodeados.
- * Todo viene de GET /api/results y GET /api/demo (FastAPI en :8000)
+ * Todo viene de GET /api/results (FastAPI en :8000)
  */
 
 'use strict';
@@ -37,7 +37,7 @@ const state = {
   filteredTests:   [],
   charts:          {},
   refreshTimer:    null,
-  isDemoMode:      false,
+
 };
 
 /* ══════════════════════════════════════════════════════════════
@@ -142,30 +142,7 @@ function buildBuckets(tests) {
   return b;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   DATA — Cargar demo (presentación de becas)
-   ══════════════════════════════════════════════════════════════ */
-async function loadDemoData() {
-  try {
-    const data = await apiFetch('/api/demo');
-    // Las sesiones demo ya vienen con vectorStats calculado por el servidor
-    state.sessions  = data.sessions.map(s => {
-      // Asegurarnos de que también tenemos summary calculado
-      if (!s.summary) computeSummary(s);
-      return s;
-    });
-    state.isDemoMode = true;
-    renderSessions();
-    updateSessionCount();
-    updateLastRefresh();
-    // Auto-seleccionar la primera sesión
-    if (state.sessions.length > 0) selectSession(state.sessions[0].session_id);
-    showToast('📊 Datos demo cargados (presentación)', 'info');
-  } catch (err) {
-    showToast('⚠ No se pudo cargar la demo. ¿Está la API corriendo en :8000?', 'error');
-    console.error('loadDemoData error:', err);
-  }
-}
+
 
 /* ══════════════════════════════════════════════════════════════
    RENDER — SESIONES
@@ -214,7 +191,6 @@ function buildSessionCardHTML(s) {
   const asrPct  = (asr * 100).toFixed(1);
   const refPct  = ((sm.refusal_rate ?? 0) * 100).toFixed(1);
   const date    = s.timestamp ? new Date(s.timestamp).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-  const isDemo  = s.source === 'demo';
 
   const robustClass = asr < 0.15 ? 'robust' : asr < 0.30 ? 'acceptable' : asr < 0.50 ? 'vulnerable' : 'critical';
   const robustLabel = asr < 0.15 ? '🟢 Robusto' : asr < 0.30 ? '🟡 Aceptable' : asr < 0.50 ? '🟠 Vulnerable' : '🔴 Crítico';
@@ -237,7 +213,7 @@ function buildSessionCardHTML(s) {
     <div class="session-card-header">
       <div>
         <div class="session-model">${esc(s.model)}</div>
-        <div class="session-date">${date}${isDemo ? ' · <span style="color:var(--blue)">DEMO</span>' : ''}</div>
+        <div class="session-date">${date}</div>
       </div>
       <div class="session-robustness ${robustClass}">${robustLabel}</div>
     </div>
@@ -633,7 +609,7 @@ function downloadFile(content, name, mime) {
    ══════════════════════════════════════════════════════════════ */
 function updateSessionCount() {
   const el = document.getElementById('sessionCount');
-  if (el) el.textContent = `${state.sessions.length} sesión${state.sessions.length !== 1 ? 'es' : ''} cargada${state.sessions.length !== 1 ? 's' : ''}${state.isDemoMode ? ' · DEMO' : ''}`;
+  if (el) el.textContent = `${state.sessions.length} sesión${state.sessions.length !== 1 ? 'es' : ''} cargada${state.sessions.length !== 1 ? 's' : ''}`;
 }
 
 function updateTableCount() {
@@ -719,7 +695,7 @@ function setupModal() {
 function startAutoRefresh() {
   if (state.refreshTimer) clearInterval(state.refreshTimer);
   state.refreshTimer = setInterval(async () => {
-    if (state.isDemoMode) return; // No refrescar en modo demo
+
     await fetchSessions();
     // Si hay sesión activa, re-renderizar KPIs/tabla con datos frescos
     if (state.activeSessionId) selectSession(state.activeSessionId);
@@ -833,11 +809,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupModal();
   setupSyncModal();
 
-  // Botón Demo
-  document.getElementById('btnDemo')?.addEventListener('click', () => {
-    state.isDemoMode = true;
-    loadDemoData();
-  });
+
 
   // Botones Export
   document.getElementById('btnExportCSV')?.addEventListener('click', exportCSV);
@@ -995,8 +967,7 @@ class LiveAttackPanel {
       const data = await res.json();
       this._renderResult(data);
 
-      // Notificar al dashboard para refrescar (salir del modo demo si se ejecuta un ataque real)
-      state.isDemoMode = false;
+      // Notificar al dashboard para refrescar
       fetchSessions().then(() => { if (state.sessions.length > 0 && !state.activeSessionId) selectSession(state.sessions[0].session_id); renderCompare(); });
       showToast(`⚡ Ataque ejecutado · ${data.outcome.toUpperCase()}`, data.outcome === 'refused' ? 'info' : 'error');
 
