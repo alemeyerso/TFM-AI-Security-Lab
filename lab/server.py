@@ -1,4 +1,4 @@
-﻿"""
+"""
 AI Security Lab — FastAPI Server
 TFM 2025-26 · UCM · Máster en Ciberseguridad
 
@@ -470,13 +470,55 @@ async def api_results():
 
 @app.get("/api/results/{filename}")
 async def api_result_detail(filename: str):
-    """Return the full JSON content of a result file."""
+    """Return the full JSON content of a result file, normalized for the dashboard."""
     # Security: prevent path traversal
     safe_name = Path(filename).name
     fpath = RESULTS_DIR / safe_name
     if not fpath.exists() or not fpath.suffix == ".json":
         raise HTTPException(status_code=404, detail=f"Resultado '{safe_name}' no encontrado.")
-    return json.loads(fpath.read_text(encoding="utf-8"))
+    data = json.loads(fpath.read_text(encoding="utf-8"))
+
+    # ── Normalize eval format (run_eval.py) → dashboard format ──
+    # run_eval.py uses "results" with fields: name, mitre_id, mitre_name, ...
+    # Dashboard expects "tests" with fields: payload_name, mitre, ...
+    if "results" in data and "tests" not in data:
+        tests = []
+        for r in data["results"]:
+            tests.append({
+                "id": r.get("id", ""),
+                "vector": r.get("vector", ""),
+                "payload_id": r.get("id", ""),
+                "payload_name": r.get("name", ""),
+                "category": r.get("category", ""),
+                "severity": r.get("severity", "medium"),
+                "outcome": r.get("outcome", "refused"),
+                "prompt": r.get("prompt", r.get("prompt_preview", "")),
+                "response": r.get("response", r.get("response_preview", "")),
+                "latency_ms": r.get("latency_ms", 0),
+                "mitre": r.get("mitre_id", ""),
+                "mitre_name": r.get("mitre_name", ""),
+                "mitre_tactic": r.get("mitre_tactic", ""),
+                "defense_applied": False,
+                "defense_blocked": r.get("outcome") == "refused",
+            })
+        data["tests"] = tests
+        # Also build summary if missing
+        if "summary" not in data:
+            total = len(tests)
+            success = sum(1 for t in tests if t["outcome"] == "success")
+            partial = sum(1 for t in tests if t["outcome"] == "partial")
+            refused = sum(1 for t in tests if t["outcome"] == "refused")
+            data["summary"] = {
+                "total_tests": total,
+                "successful_attacks": success,
+                "partial_attacks": partial,
+                "refused": refused,
+                "asr": round(success / total, 3) if total else 0,
+                "partial_asr": round(partial / total, 3) if total else 0,
+                "refusal_rate": round(refused / total, 3) if total else 0,
+                "avg_latency_ms": round(sum(t["latency_ms"] for t in tests) / total) if total else 0,
+            }
+    return data
 
 
 # ─────────────────────────────────────────────
