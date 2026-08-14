@@ -511,6 +511,134 @@ function renderCompare() {
       </div>
     </div>`;
   }).join('');
+
+  renderHeatmap(sorted);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER — HEATMAP ATAQUE × MODELO
+   ══════════════════════════════════════════════════════════════ */
+function renderHeatmap(sessions) {
+  const container = document.getElementById('heatmapContainer');
+  const content   = document.getElementById('heatmapContent');
+  if (!container || !content || sessions.length < 2) {
+    if (container) container.style.display = 'none';
+    return;
+  }
+
+  // Build unified attack list from first session (they all share the same payloads)
+  const attackIds = [];
+  const attackMeta = {};
+  for (const session of sessions) {
+    for (const t of (session.tests || [])) {
+      const key = t.payload_id || t.id || t.test_id;
+      if (!key) continue;
+      if (!attackMeta[key]) {
+        attackIds.push(key);
+        attackMeta[key] = {
+          name: t.payload_name || t.name || key,
+          vector: t.vector || '?',
+          severity: t.severity || '?',
+        };
+      }
+    }
+  }
+
+  if (attackIds.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = '';
+
+  // Build outcome map per model
+  const modelOutcomes = sessions.map(s => {
+    const map = {};
+    for (const t of (s.tests || [])) {
+      const key = t.payload_id || t.id || t.test_id;
+      if (key) map[key] = t.outcome || '?';
+    }
+    return { model: s.model, map };
+  });
+
+  // Group attacks by vector for visual grouping
+  const vectorOrder = ['direct', 'indirect', 'jailbreak', 'tool_abuse'];
+  const vectorIcons = { direct: '⚡', indirect: '🌐', jailbreak: '🔓', tool_abuse: '🔧' };
+  const grouped = {};
+  for (const id of attackIds) {
+    const v = attackMeta[id].vector;
+    if (!grouped[v]) grouped[v] = [];
+    grouped[v].push(id);
+  }
+
+  const outcomeColor = (o) => {
+    if (o === 'success') return '#ff3366';
+    if (o === 'partial') return '#f59e0b';
+    if (o === 'refused') return '#00d4aa';
+    return '#555';
+  };
+  const outcomeChar = (o) => {
+    if (o === 'success') return '✗';
+    if (o === 'partial') return '~';
+    if (o === 'refused') return '✓';
+    return '?';
+  };
+
+  // Count differences
+  let diffCount = 0;
+  for (const id of attackIds) {
+    const outcomes = modelOutcomes.map(m => m.map[id] || '?');
+    if (new Set(outcomes).size > 1) diffCount++;
+  }
+
+  let html = `<div style="margin-bottom:12px;font-size:13px;color:var(--text-secondary)">
+    <span style="color:var(--green)">● Refused</span>&nbsp;&nbsp;
+    <span style="color:var(--yellow)">● Partial</span>&nbsp;&nbsp;
+    <span style="color:var(--red)">● Success</span>&nbsp;&nbsp;
+    <span style="border:1px solid var(--blue);border-radius:3px;padding:0 6px;font-size:11px;">bordado</span> = modelos difieren
+    &nbsp;&nbsp;·&nbsp;&nbsp;<strong>${diffCount}</strong> de ${attackIds.length} ataques con resultado diferente
+  </div>`;
+
+  html += '<table style="width:100%;border-collapse:separate;border-spacing:2px;font-size:12px">';
+
+  const sevColor = (s) => ({ critical: '#ff3366', high: '#f97316', medium: '#f59e0b', low: '#4facfe' }[s] || '#888');
+  const sevLabel = (s) => ({ critical: 'CRI', high: 'HIGH', medium: 'MED', low: 'LOW' }[s] || '?');
+
+  // Header row
+  html += '<tr><th style="text-align:left;padding:6px 8px;color:var(--text-muted);font-weight:500;min-width:200px">Ataque</th>';
+  html += '<th style="text-align:center;padding:6px 4px;color:var(--text-muted);font-weight:500;width:45px">Sev</th>';
+  for (const m of modelOutcomes) {
+    html += `<th style="text-align:center;padding:6px 8px;color:var(--text-primary);font-weight:600;min-width:90px">${esc(m.model.replace('gemma4:', ''))}</th>`;
+  }
+  html += '</tr>';
+
+  // Rows grouped by vector
+  for (const vec of vectorOrder) {
+    if (!grouped[vec] || grouped[vec].length === 0) continue;
+    const icon = vectorIcons[vec] || '';
+
+    // Vector separator row
+    html += `<tr><td colspan="${modelOutcomes.length + 2}" style="padding:8px 8px 4px;font-weight:600;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:0.5px;border-top:1px solid rgba(139,157,195,0.1)">${icon} ${vec.replace('_', ' ')}</td></tr>`;
+
+    for (const id of grouped[vec]) {
+      const meta = attackMeta[id];
+      const outcomes = modelOutcomes.map(m => m.map[id] || '?');
+      const isDiff = new Set(outcomes).size > 1;
+
+      const sc = sevColor(meta.severity);
+      html += `<tr style="${isDiff ? 'background:rgba(79,172,254,0.04)' : ''}">`;
+      html += `<td style="padding:4px 8px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:250px" title="${esc(meta.name)}">${esc(meta.name)}</td>`;
+      html += `<td style="text-align:center;padding:3px"><span style="font-size:9px;font-weight:700;padding:1px 4px;border-radius:3px;background:${sc}22;color:${sc};letter-spacing:0.3px">${sevLabel(meta.severity)}</span></td>`;
+
+      for (const o of outcomes) {
+        const bg = outcomeColor(o);
+        const border = isDiff ? 'border:2px solid var(--blue)' : 'border:2px solid transparent';
+        html += `<td style="text-align:center;padding:3px">
+          <div style="display:inline-block;width:32px;height:24px;border-radius:4px;background:${bg}22;${border};line-height:20px;font-size:13px;font-weight:700;color:${bg}" title="${o}">${outcomeChar(o)}</div>
+        </td>`;
+      }
+      html += '</tr>';
+    }
+  }
+
+  html += '</table>';
+  content.innerHTML = html;
 }
 
 /* ══════════════════════════════════════════════════════════════
