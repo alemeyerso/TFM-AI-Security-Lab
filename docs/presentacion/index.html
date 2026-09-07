@@ -395,13 +395,58 @@
             font-family: 'JetBrains Mono', monospace;
             font-weight: 700;
         }
-        /* Notes toggle button */
+        /* Notes panel - fixed at bottom, outside slides */
+        .notes-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: #0d1421;
+            border-top: 2px solid rgba(6,182,212,0.3);
+            padding: 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        .notes-panel.open {
+            max-height: 40vh;
+            padding: 14px 20px;
+            overflow-y: auto;
+        }
+        .notes-panel .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .notes-panel .note-label {
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-size: 13px;
+        }
+        .notes-panel .note-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+        .notes-panel .note-content {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.7;
+        }
+
+        /* Toggle button */
         .notes-toggle {
             position: fixed;
             bottom: 16px;
             left: 16px;
-            z-index: 100;
-            background: rgba(6,182,212,0.2);
+            z-index: 101;
+            background: rgba(6,182,212,0.25);
             color: var(--accent-cyan);
             border: 1px solid rgba(6,182,212,0.4);
             padding: 8px 16px;
@@ -410,43 +455,14 @@
             font-size: 13px;
             cursor: pointer;
             backdrop-filter: blur(8px);
+            transition: bottom 0.3s ease;
         }
-        .notes-toggle:hover { background: rgba(6,182,212,0.35); }
+        .notes-toggle:hover { background: rgba(6,182,212,0.4); }
 
-        /* Visible notes (created by JS) - hidden by default */
-        .visible-note {
-            display: none;
-            background: rgba(6,182,212,0.06);
-            border-top: 1px solid rgba(6,182,212,0.2);
-            margin-top: 14px;
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 0.5em;
-            color: var(--text-muted);
-            line-height: 1.6;
-        }
-        .visible-note .note-label {
-            display: block;
-            font-weight: 700;
-            color: var(--accent-cyan);
-            margin-bottom: 6px;
-            font-size: 1.1em;
-        }
-
-        /* Show notes when toggled */
-        .show-notes .visible-note {
-            display: block;
-        }
-
-        /* Mobile: always show notes, hide button */
+        /* Mobile: auto-open notes, bigger text */
         @media (max-width: 768px) {
-            .visible-note {
-                display: block;
-                font-size: 0.45em;
-                margin-top: 10px;
-                padding: 10px 14px;
-            }
-            .notes-toggle { display: none; }
+            .notes-panel .note-content { font-size: 13px; }
+            .notes-panel.open { max-height: 35vh; padding: 12px 16px; }
         }
     </style>
 </head>
@@ -901,9 +917,37 @@
 
 <button class="notes-toggle" id="notesBtn">📋 Ver notas</button>
 
+<div class="notes-panel" id="notesPanel">
+    <div class="note-header">
+        <span class="note-label">📋 Notas del orador</span>
+        <button class="note-close" id="noteClose">&times;</button>
+    </div>
+    <div class="note-content" id="noteContent"></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/plugin/notes/notes.js"></script>
 <script>
+    var panel = document.getElementById('notesPanel');
+    var content = document.getElementById('noteContent');
+    var btn = document.getElementById('notesBtn');
+    var closeBtn = document.getElementById('noteClose');
+
+    function updateNotes() {
+        var slide = Reveal.getCurrentSlide();
+        var notes = slide ? slide.querySelector('aside.notes') : null;
+        content.textContent = notes ? notes.textContent.trim() : 'Sin notas para esta slide.';
+    }
+
+    function togglePanel() {
+        var isOpen = panel.classList.toggle('open');
+        btn.textContent = isOpen ? '📋 Ocultar notas' : '📋 Ver notas';
+        btn.style.bottom = isOpen ? (panel.offsetHeight + 16) + 'px' : '16px';
+    }
+
+    btn.addEventListener('click', togglePanel);
+    closeBtn.addEventListener('click', togglePanel);
+
     Reveal.initialize({
         hash: true,
         slideNumber: 'c/t',
@@ -917,26 +961,13 @@
         center: false,
         plugins: [ RevealNotes ]
     }).then(function() {
-        // After init, create visible note divs from aside.notes
-        document.querySelectorAll('aside.notes').forEach(function(aside) {
-            var noteDiv = document.createElement('div');
-            noteDiv.className = 'visible-note';
-            noteDiv.innerHTML = '<span class="note-label">📋 Notas del orador</span>' + aside.innerHTML;
-            aside.parentElement.appendChild(noteDiv);
-        });
+        updateNotes();
+        Reveal.on('slidechanged', updateNotes);
 
-        // Toggle logic
-        var btn = document.getElementById('notesBtn');
-        var isMobile = window.innerWidth <= 768;
-        if (isMobile) {
-            document.body.classList.add('show-notes');
-            btn.style.display = 'none';
+        // Auto-open on mobile
+        if (window.innerWidth <= 768) {
+            togglePanel();
         }
-        btn.addEventListener('click', function() {
-            document.body.classList.toggle('show-notes');
-            btn.textContent = document.body.classList.contains('show-notes') 
-                ? '📋 Ocultar notas' : '📋 Ver notas';
-        });
     });
 </script>
 </body>
