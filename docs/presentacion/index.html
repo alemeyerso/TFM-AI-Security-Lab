@@ -464,15 +464,36 @@
             .notes-panel .note-content { font-size: 13px; }
             .notes-panel.open { max-height: 35vh; padding: 12px 16px; }
             .reveal .slides section {
-                justify-content: flex-start;
+                justify-content: center;
                 align-items: center;
                 text-align: center;
-                padding-top: 20px;
+                padding: 10px 20px;
             }
             .reveal h2, .reveal h3 { text-align: center; }
             .reveal h2 { font-size: 1.2em; }
             .reveal p, .reveal li { font-size: 0.6em; }
             .reveal ul { text-align: left; }
+            .notes-toggle { display: none; }
+            .notes-reopen {
+                display: block;
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                z-index: 99;
+                background: rgba(6,182,212,0.15);
+                color: var(--accent-cyan);
+                text-align: center;
+                padding: 8px;
+                font-size: 12px;
+                font-family: 'Inter', sans-serif;
+                cursor: pointer;
+                border: none;
+                width: 100%;
+            }
+        }
+        @media (min-width: 769px) {
+            .notes-reopen { display: none; }
         }
     </style>
 </head>
@@ -926,6 +947,7 @@
 </div><!-- /reveal -->
 
 <button class="notes-toggle" id="notesBtn">📋 Ver notas</button>
+<button class="notes-reopen" id="notesReopen" style="display:none;">📋 Pulsa para ver notas del orador</button>
 
 <div class="notes-panel" id="notesPanel">
     <div class="note-header">
@@ -942,6 +964,8 @@
     var content = document.getElementById('noteContent');
     var btn = document.getElementById('notesBtn');
     var closeBtn = document.getElementById('noteClose');
+    var reopenBtn = document.getElementById('notesReopen');
+    var isMobile = window.innerWidth <= 768;
 
     function updateNotes() {
         var slide = Reveal.getCurrentSlide();
@@ -949,14 +973,29 @@
         content.textContent = notes ? notes.textContent.trim() : 'Sin notas para esta slide.';
     }
 
-    function togglePanel() {
-        var isOpen = panel.classList.toggle('open');
-        btn.textContent = isOpen ? '📋 Ocultar notas' : '📋 Ver notas';
-        btn.style.bottom = isOpen ? (panel.offsetHeight + 16) + 'px' : '16px';
+    function openPanel() {
+        panel.classList.add('open');
+        if (!isMobile) {
+            btn.textContent = '📋 Ocultar notas';
+            btn.style.bottom = (panel.offsetHeight + 16) + 'px';
+        }
+        reopenBtn.style.display = 'none';
     }
 
-    btn.addEventListener('click', togglePanel);
-    closeBtn.addEventListener('click', togglePanel);
+    function closePanel() {
+        panel.classList.remove('open');
+        if (!isMobile) {
+            btn.textContent = '📋 Ver notas';
+            btn.style.bottom = '16px';
+        }
+        if (isMobile) reopenBtn.style.display = 'block';
+    }
+
+    btn.addEventListener('click', function() {
+        panel.classList.contains('open') ? closePanel() : openPanel();
+    });
+    closeBtn.addEventListener('click', closePanel);
+    reopenBtn.addEventListener('click', openPanel);
 
     Reveal.initialize({
         hash: true,
@@ -973,11 +1012,7 @@
     }).then(function() {
         updateNotes();
         Reveal.on('slidechanged', updateNotes);
-
-        // Auto-open on mobile
-        if (window.innerWidth <= 768) {
-            togglePanel();
-        }
+        if (isMobile) openPanel();
     });
 </script>
 </body>
