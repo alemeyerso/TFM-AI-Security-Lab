@@ -34,10 +34,6 @@
             padding: 30px 50px;
             background: var(--bg-primary);
             box-sizing: border-box;
-            height: 100% !important;
-            display: flex !important;
-            flex-direction: column;
-            justify-content: center;
         }
 
         .reveal h1, .reveal h2, .reveal h3 {
@@ -1001,7 +997,7 @@
         width: 1280,
         height: 720,
         margin: 0,
-        center: false,
+        center: true,
         plugins: [ RevealNotes ]
     }).then(function() {
         updateNotes();
