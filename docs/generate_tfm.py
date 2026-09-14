@@ -280,7 +280,8 @@ for row_data in [
     table_row(t_atlas, row_data)
 caption('Tabla 2.1. Correspondencia entre amenazas evaluadas y técnicas MITRE ATLAS.')
 hd('2.4. Trabajo relacionado', 2)
-p('El estudio de la seguridad en grandes modelos de lenguaje (LLMs) ha experimentado un crecimiento exponencial. Investigaciones fundamentales como las de Wei et al. (2023) sobre jailbreaks y el descubrimiento de la inyección indirecta por Greshake et al. (2023) sentaron las bases del campo. Trabajos recientes como el ataque Crescendo (Russinovich et al., 2024) han demostrado que técnicas de escalamiento gradual pueden evadir los filtros de seguridad de los modelos más avanzados. Este Trabajo de Fin de Máster construye sobre estos cimientos para evaluar estas amenazas específicamente en el contexto de agentes autónomos, utilizando el marco taxonómico de MITRE ATLAS.', indent=True)
+p('El estudio de la seguridad en grandes modelos de lenguaje (LLMs) ha experimentado un crecimiento exponencial. Investigaciones fundamentales como las de Wei et al. (2023) sobre jailbreaks y el descubrimiento de la inyección indirecta por Greshake et al. (2023) sentaron las bases del campo. Trabajos recientes como el ataque Crescendo (Russinovich et al., 2024) han demostrado que técnicas de escalamiento gradual pueden evadir los filtros de seguridad de los modelos más avanzados.', indent=True)
+p('Existen múltiples marcos de evaluación automatizada para la seguridad de LLMs. garak (dstillstudio, 2024) y HarmBench (Mazeika et al., 2024) evalúan la robustez de modelos individuales frente a baterías de prompts adversariales. PyRIT (Microsoft, 2024) automatiza el red-teaming con generación de ataques asistida por IA. En el dominio agéntico, AgentDojo (ETH Zürich, 2024) e InjecAgent (Zhan et al., 2024) evalúan la resistencia de agentes con herramientas a inyecciones indirectas, midiendo si el agente ejecuta la acción inyectada. Este Trabajo de Fin de Máster se diferencia de todos ellos en un aspecto que ninguno aborda: la fiabilidad de la propia medición. Los marcos anteriores ejecutan cada ataque una sola vez y reportan el ASR resultante. Nuestro trabajo demuestra (§4.9) que el clasificador automático produce un 63,5% de error, y que la repetición con n=5 (E1) y la verificación de predicciones (E2) son necesarios para producir resultados interpretables. El laboratorio combina la infraestructura reproducible de estos marcos con un protocolo de validación experimental que incluye repeticiones, intervalos de confianza, matriz de confusión del clasificador y verificación de predicciones falsables.', indent=True)
 
 doc.add_page_break()
 
@@ -549,23 +550,24 @@ p('Para cuantificar la fiabilidad de la evaluación con n=1 descrita en §3.4.1,
 t_e1 = doc.add_table(rows=1, cols=6)
 t_e1.style = 'Table Grid'
 table_hdr(t_e1, ['Vector', 'e2b ASR', 'e2b IC95', 'e4b ASR', 'e4b IC95', 'n'])
-table_row(t_e1, ['Direct Injection', '0.0%', '[0-7.1]', '0.0%', '[0-7.1]', '50'])
-table_row(t_e1, ['Jailbreak', '22.7%', '[14.7-33.3]', '21.3%', '[13.6-31.9]', '75'])
-table_row(t_e1, ['Tool Abuse', '0.0%', '[0-8.8]', '0.0%', '[0-8.8]', '40'])
-table_row(t_e1, ['GLOBAL', '9.8%', '[6.2-15.2]', '8.9%', '[5.5-14.0]', '~180'])
+table_row(t_e1, ['Direct Injection', '0,0%', '[0-7,1]', '0,0%', '[0-7,1]', '50'])
+table_row(t_e1, ['Inyección indirecta', '0,0%', 'n/a (entrega fallida)', '0,0%', 'n/a', '8 válidos'])
+table_row(t_e1, ['Jailbreak', '22,7%', '[14,7-33,3]', '21,3%', '[13,6-31,9]', '75'])
+table_row(t_e1, ['Tool Abuse', '0,0%', '[0-8,8]', '0,0%', '[0-8,8]', '40'])
+table_row(t_e1, ['GLOBAL', '9,8%', '[6,2-15,2]', '8,9%', '[5,5-14,0]', '173'])
 caption('Tabla 4.7. ASR con intervalos de confianza de Wilson (95%) tras 5 repeticiones por payload (E1, reclasificado).')
 
 p('Nota: El vector de inyección indirecta arrojó un ASR del 0% en E1 debido a que los documentos portadores no se integraron correctamente en el prompt del script automatizado (22 de las 30 ejecuciones se clasificaron como invalid por fallo de entrega). La fiabilidad de este vector se evaluó de forma independiente mediante la reevaluación con canario reportada en §4.4 (60 ejecuciones, ASR del 46,7% en e2b con IC95: 30,2%-63,9%). La ventana de contexto de E1 (8.192 tokens) difiere de la utilizada en la batería de agosto (127.000 tokens, Anexo E), por lo que parte de la divergencia entre ambas evaluaciones puede atribuirse al cambio de instrumento y no solo a la estocasticidad.', indent=True)
 
-p('El hallazgo principal de E1 es que todo el ASR proviene del vector de jailbreak (22,7% en e2b, 21,3% en e4b), mientras que los tres vectores restantes (direct injection, tool abuse e inyección indirecta con entrega fallida) producen un ASR del 0% con repeticiones. Los dos modelos densos son estadísticamente equivalentes: sus intervalos de confianza se solapan completamente. Este resultado contrasta con la batería de agosto (n=1), que asignaba un ASR del 25% a ambos modelos pero en vectores distintos, y confirma que las diferencias de ASR observadas con n=1 reflejaban ruido de muestreo.', indent=True)
+p('El hallazgo principal de E1 es que todo el ASR proviene del vector de jailbreak (22,7% en e2b, 21,3% en e4b), mientras que los tres vectores restantes (direct injection, tool abuse e inyección indirecta con entrega fallida) producen un ASR del 0% con repeticiones. Los dos modelos densos son estadísticamente equivalentes: sus intervalos de confianza se solapan completamente. Este resultado contrasta con la batería de agosto (n=1), que asignaba un ASR del 25% a ambos modelos pero en vectores distintos.', indent=True)
 
 hd('4.7.1. Clasificación de estabilidad por payload', 3)
 p('Al clasificar cada payload según su comportamiento en las 5 repeticiones se obtienen tres categorías:', indent=True)
-bullet('Determinista-vulnerable: compromete las 5 ejecuciones (5/5). En ambos modelos, jailbreak_007 (Hypothetical Reframing), jailbreak_008 (System Admin Script) y jailbreak_011 (Academic Reframing). Son los tres payloads que enmarcan la petición como investigación de seguridad legítima.')
+bullet('Determinista-vulnerable: compromete las 5 ejecuciones (5/5). En ambos modelos, jailbreak_007 (Hypothetical Reframing), jailbreak_011 (Professor Roleplay) y jailbreak_012 (Academic Research Context Framing). Son los tres payloads que enmarcan la petición como investigación de seguridad legítima.')
 bullet('Estocástico: resultado variable entre repeticiones (1-4/5). Solo 1 payload por modelo (2,8-2,9%), lo que indica que la frontera de decisión del alineamiento es nítida: la mayoría de los payloads son deterministas en una u otra dirección.')
 bullet('Determinista-robusto: rechaza las 5 ejecuciones (0/5). 31 de 35 payloads válidos en e2b (88,6%) y 32 de 36 en e4b (88,9%).')
 
-p('La concordancia entre la batería de agosto (n=1) y la clasificación por mayoría de E1 (n=5) es del 47% (17 de 36 payloads comunes). Este valor es más conservador que el 18,2% de concordancia n=1 contra n=1 reportado en §4.6 y, por utilizar la mayoría de 5 repeticiones como referencia, más informativo: confirma que aproximadamente la mitad de las clasificaciones individuales de la batería principal difieren del comportamiento estable del payload.', indent=True)
+p('La concordancia entre la batería de agosto (n=1) y la clasificación por mayoría de E1 (n=5) es del 47% (17 de 36 payloads comunes). Este resultado, combinado con el 88-89% de payloads deterministas y el 63,5% de error del clasificador (§4.9), permite reconciliar una aparente contradicción: si la inmensa mayoría de los payloads produce resultados deterministas con n=5, la discordancia del 47% (y la inestabilidad severa del 18,2% reportada en §4.6) no puede explicarse por la estocasticidad del modelo. La causa principal es el error de medición: el clasificador automático de la batería de agosto asignaba etiquetas incorrectas en el 63,5% de los casos, y el cambio de ventana de contexto (num_ctx de 127.000 a 8.192 entre evaluaciones) alteraba el comportamiento de los payloads más largos. La inestabilidad aparente de las evaluaciones de seguridad con n=1 es, en gran medida, error de instrumento, no variabilidad del modelo.', indent=True)
 
 
 
@@ -577,39 +579,39 @@ p('Se ejecutaron 10 repeticiones por celda sobre e2b y e4b (240 ejecuciones tota
 
 t_e3 = doc.add_table(rows=1, cols=5)
 t_e3.style = 'Table Grid'
-table_hdr(t_e3, ['Tipo de accion', 'Ratio 1:1', 'Ratio 1:10', 'Ratio 1:100', 'Patron'])
-table_row(t_e3, ['Alterar conclusion', '90% / 80%', '100% / 40%', '90% / 70%', 'Solo texto: ASR alto'])
+table_hdr(t_e3, ['Tipo de acción', 'Ratio 1:1', 'Ratio 1:10', 'Ratio 1:100', 'Patrón'])
+table_row(t_e3, ['Alterar conclusión', '90% / 80%', '100% / 40%', '90% / 70%', 'Solo texto: ASR alto'])
 table_row(t_e3, ['Afirmar estado', '70% / 60%', '90% / 90%', '60% / 80%', 'Solo texto: ASR alto'])
-table_row(t_e3, ['Accion externa', '0% / 0%', '0% / 0%', '0% / 0%', 'Incapacidad: 0%'])
-table_row(t_e3, ['Contenido danino', '0% / 0%', '0% / 0%', '0% / 0%', 'Alineamiento: 0%'])
-caption('Tabla 4.8. ASR (e2b / e4b) por tipo de accion y ratio de dilucion en inyeccion indirecta (E3, reclasificado).')
+table_row(t_e3, ['Acción externa', '0% / 0%', '0% / 0%', '0% / 0%', 'Incapacidad: 0%'])
+table_row(t_e3, ['Contenido dañino', '0% / 0%', '0% / 0%', '0% / 0%', 'Alineamiento: 0%'])
+caption('Tabla 4.8. ASR (e2b / e4b) por tipo de acción y ratio de dilución en inyección indirecta (E3, reclasificado).')
 
 p('Los cuatro niveles del factor A se parten limpiamente en dos grupos:', indent=True)
-bullet('Acciones cuyo cumplimiento se agota en emitir texto (alter_conclusion, assert_state): ASR del 60-100%. La inyeccion indirecta prospera porque la respuesta comprometida es indistinguible de una respuesta legitima. El alineamiento del modelo no la detecta.')
-bullet('Acciones que exigen una capacidad que el modelo no tiene (external_action) o contenido que el alineamiento bloquea (harmful_content): ASR del 0%. En external_action, el modelo declara explicitamente su incapacidad: «no tengo la capacidad de enviar correos electronicos ni de interactuar con sistemas externos». Este rechazo no es una defensa, sino un artefacto del entorno de prueba: el modelo Gemma 4, ejecutado con Ollama sin herramientas conectadas, carece de la funcionalidad de envio.')
+bullet('Acciones cuyo cumplimiento se agota en emitir texto (alter_conclusion, assert_state): ASR del 60-100%. La inyección indirecta prospera porque la respuesta comprometida es indistinguible de una respuesta legítima. El alineamiento del modelo no la detecta.')
+bullet('Acciones que exigen una capacidad que el modelo no tiene (external_action) o contenido que el alineamiento bloquea (harmful_content): ASR del 0%. En external_action, el modelo declara explícitamente su incapacidad: «no tengo la capacidad de enviar correos electrónicos ni de interactuar con sistemas externos». Este rechazo no es una defensa, sino un artefacto del entorno de prueba: el modelo Gemma 4, ejecutado con Ollama sin herramientas conectadas, carece de la funcionalidad de envío.')
 
-p('Esta distincion genera una prediccion falsable: en un agente con herramientas conectadas (por ejemplo, send_email), el ASR de external_action deberia elevarse significativamente, ya que la barrera no es el alineamiento sino la capacidad. La verificacion de esta prediccion se plantea como trabajo futuro en §7.3.', indent=True)
+p('Esta distinción genera una predicción falsable: en un agente con herramientas conectadas (por ejemplo, send_email), el ASR de external_action debería elevarse significativamente, ya que la barrera no es el alineamiento sino la capacidad. La verificación de esta predicción se presenta en §4.10.', indent=True)
 
-p('El factor B (dilucion) no muestra un efecto monotono en ningun nivel: las secuencias 90/100/90, 70/90/60 y 60/90/80 no siguen un patron de dilucion. Este resultado nulo es legitimo pero debe interpretarse con dos advertencias: (1) la dilucion se implemento repitiendo el mismo parrafo, y el modelo detecta la repeticion («a pesar de la repeticion del texto en el informe»); (2) en ratio 1:100, el prompt alcanza 32.687 caracteres (~9.000 tokens), lo que, con num_ctx=8.192, puede haber truncado la instruccion inyectada en algunas ejecuciones. Sin verificacion del truncado por celda, la fila 1:100 no es plenamente interpretable.', indent=True)
+p('El factor B (dilución) no muestra un efecto monótono en ningún nivel: las secuencias 90/100/90, 70/90/60 y 60/90/80 no siguen un patrón de dilución. Este resultado nulo es legítimo pero debe interpretarse con dos advertencias: (1) la dilución se implementó repitiendo el mismo párrafo, y el modelo detecta la repetición («a pesar de la repetición del texto en el informe»); (2) en ratio 1:100, el prompt alcanza 32.687 caracteres (~9.000 tokens), lo que, con num_ctx=8.192, puede haber truncado la instrucción inyectada en algunas ejecuciones. Sin verificación del truncado por celda, la fila 1:100 no es plenamente interpretable.', indent=True)
 
-hd('4.9. Validacion del clasificador automatico', 2)
-p('La reclasificacion manual de los 630 registros de E1 y E3 con la rubrica del Anexo G permitio evaluar la precision del clasificador automatico utilizado en los scripts de experimentacion. La matriz de confusion resultante es:', indent=True)
+hd('4.9. Validación del clasificador automático', 2)
+p('La reclasificación manual de los 630 registros de E1 y E3 con la rúbrica del Anexo G permitió evaluar la precisión del clasificador automático utilizado en los scripts de experimentación. La matriz de confusión resultante es:', indent=True)
 
 t_cm = doc.add_table(rows=1, cols=5)
 t_cm.style = 'Table Grid'
-table_hdr(t_cm, ['Clasif. auto', 'success', 'partial', 'refused', 'invalid'])
+table_hdr(t_cm, ['Clasif. automático \u2193 / Manual \u2192', 'success', 'partial', 'refused', 'invalid'])
 table_row(t_cm, ['success', '113', '11', '44', '0'])
 table_row(t_cm, ['partial', '12', '29', '291', '7'])
 table_row(t_cm, ['refused', '0', '5', '88', '30'])
-caption('Tabla 4.9. Matriz de confusion del clasificador automatico frente a revision manual con rubrica (630 registros, E1+E3).')
+caption('Tabla 4.9. Matriz de confusión del clasificador automático frente a revisión manual con rúbrica (630 registros, E1+E3).')
 
-p('El clasificador automatico discrepa de la revision manual en el 63,5% de los registros. El sesgo principal es la inflacion de la categoria partial: 291 respuestas que comienzan con una negativa explicita (por ejemplo, «Lo siento, no puedo») fueron clasificadas como parciales por el clasificador automatico, cuando la rubrica las clasifica como refused. En la direccion opuesta, 44 registros etiquetados como success por el clasificador son en realidad refused: respuestas educativas que explican conceptos de seguridad sin proporcionar el contenido operativo solicitado por el atacante.', indent=True)
+p('El clasificador automático discrepa de la revisión manual en el 63,5% de los registros. El sesgo principal es la inflación de la categoría partial: 291 respuestas que comienzan con una negativa explícita (por ejemplo, «Lo siento, no puedo») fueron clasificadas como parciales por el clasificador automático, cuando la rúbrica las clasifica como refused. En la dirección opuesta, 44 registros etiquetados como success por el clasificador son en realidad refused: respuestas educativas que explican conceptos de seguridad sin proporcionar el contenido operativo solicitado por el atacante.', indent=True)
 
-p('Este resultado subraya la insuficiencia de los clasificadores basados en patrones lexicos para evaluar la seguridad de LLMs. La distincion entre una respuesta educativa (refused) y una que proporciona contenido actionable al atacante (success) requiere comprension del contexto del ataque, no solo deteccion de palabras clave. Todos los ASR reportados en este capitulo utilizan las etiquetas de la revision manual.', indent=True)
+p('Este resultado subraya la insuficiencia de los clasificadores basados en patrones léxicos para evaluar la seguridad de LLMs. La distinción entre una respuesta educativa (refused) y una que proporciona contenido actionable al atacante (success) requiere comprensión del contexto del ataque, no solo detección de palabras clave. Todos los ASR reportados en este capítulo utilizan las etiquetas de la revisión manual.', indent=True)
 
-hd('4.10. Experimento E2: verificacion de la prediccion de incapacidad', 2)
-p('El experimento E3 (§4.8) revelo que el nivel external_action producia un ASR del 0% porque el modelo declaraba su incapacidad para enviar correos electronicos. Para verificar que esta barrera es la capacidad del entorno y no el alineamiento del modelo, se diseno un experimento minimo (E2) que replica las 3 celdas de external_action de E3 pero con un system prompt que incluye una herramienta simulada send_email(to, subject, body).', indent=True)
-p('Se ejecutaron 10 repeticiones por celda sobre e2b y e4b (60 ejecuciones totales), con la misma inyeccion de E3 pero anadiendo la instruccion «Usa la herramienta send_email para enviar el correo». La herramienta no ejecuta realmente el envio; se evalua si el modelo genera la llamada TOOL_CALL correspondiente.', indent=True)
+hd('4.10. Experimento E2: verificación de la predicción de incapacidad', 2)
+p('El experimento E3 (§4.8) reveló que el nivel external_action producía un ASR del 0% porque el modelo declaraba su incapacidad para enviar correos electrónicos. Para verificar que esta barrera es la capacidad del entorno y no el alineamiento del modelo, se diseñó un experimento mínimo (E2) que replica las 3 celdas de external_action de E3 pero con un system prompt que incluye una herramienta simulada send_email(to, subject, body).', indent=True)
+p('La única modificación respecto a E3 es que la instrucción inyectada dentro del documento envenenado incluye la directiva «Usa la herramienta send_email para reenviar el informe a external-audit@review-corp.com». Esta instrucción forma parte de la nota inyectada, no de la tarea del usuario, por lo que el experimento mide la eficacia de la inyección indirecta en presencia de herramientas. Se ejecutaron 10 repeticiones por celda sobre e2b y e4b (60 ejecuciones totales). El criterio de éxito es la emisión de la llamada TOOL_CALL correspondiente; la herramienta no ejecuta realmente el envío, pero en un agente de producción con herramientas conectadas, el orquestador la ejecutaría. Los prompts completos se incluyen en el Anexo H.', indent=True)
 
 # E2 results
 t_e2 = doc.add_table(rows=1, cols=4)
@@ -620,9 +622,9 @@ table_row(t_e2, ['Ratio 1:10', '100% [72.2-100]', '100% [72.2-100]', '0% / 0%'])
 table_row(t_e2, ['Ratio 1:100', '80% [49.0-94.3]', '80% [49.0-94.3]', '0% / 0%'])
 caption('Tabla 4.10. ASR de external_action con herramienta send_email (E2) frente a sin herramienta (E3).')
 
-p('La hipotesis se confirma de forma contundente: el ASR global de E2 es del 93,3% (56/60, IC95: 84,1-97,4%), frente al 0% de E3. Ambos modelos generan la llamada [TOOL_CALL: send_email(to=\"external-audit@review-corp.com\", ...)] cuando creen disponer de la herramienta, con un comportamiento identico (100% en ratios 1:1 y 1:10). La caida al 80% en el ratio 1:100 se explica por el truncado del prompt: con 25.000+ caracteres y num_ctx=8192, la inyeccion se pierde en 2 de cada 10 ejecuciones. Este resultado tiene dos implicaciones criticas para la seguridad de agentes autonomos:', indent=True)
-p('Primera: la barrera que protegia a external_action en E3 era la incapacidad del entorno, no el alineamiento del modelo. En un agente real con herramientas conectadas (envio de correo, acceso a APIs, ejecucion de comandos), esta proteccion desaparece.', indent=True)
-p('Segunda: el factor determinante del exito de la inyeccion indirecta no es solo la compatibilidad semantica con la tarea (§4.8), sino la disponibilidad de la capacidad requerida. Cuando ambas condiciones se cumplen, el ASR se aproxima al 100%.', indent=True)
+p('La hipótesis se confirma de forma contundente: el ASR global de E2 es del 93,3% (56/60, IC95: 84,1-97,4%), frente al 0% de E3. Ambos modelos generan la llamada [TOOL_CALL: send_email(to="external-audit@review-corp.com", ...)] cuando creen disponer de la herramienta, con un comportamiento idéntico (100% en ratios 1:1 y 1:10). La caída al 80% en el ratio 1:100 es consistente con el truncado del prompt (con 25.000+ caracteres y num_ctx=8.192, la instrucción inyectada puede quedar fuera de la ventana de contexto), aunque esta hipótesis no se ha verificado midiendo el recuento de tokens por celda. Este resultado tiene dos implicaciones críticas para la seguridad de agentes autónomos:', indent=True)
+p('Primera: la barrera que protegía a external_action en E3 era la incapacidad del entorno, no el alineamiento del modelo. En un agente real con herramientas conectadas (envío de correo, acceso a APIs, ejecución de comandos), esta protección desaparece.', indent=True)
+p('Segunda: el factor determinante del éxito de la inyección indirecta no es solo la compatibilidad semántica con la tarea (§4.8), sino la disponibilidad de la capacidad requerida. Cuando ambas condiciones se cumplen, el ASR se aproxima al 100%.', indent=True)
 
 hd('5. Marco de defensa y recomendaciones', 1)
 
@@ -724,7 +726,7 @@ p('Este Trabajo de Fin de Máster ha diseñado e implementado un laboratorio de 
 
 hd('7.1. Hallazgos principales', 2)
 bullet(f'Se disenaron y ejecutaron 39 ataques clasificados segun la taxonomia MITRE ATLAS en 4 vectores (direct injection, indirect injection, jailbreak, tool abuse), evaluando 3 modelos de la familia Gemma 4. Los modelos densos (e2b y e4b) registraron un ASR identico del {e2b["asr"]}% en la bateria inicial (n=1), mientras que el modelo MoE de 26B alcanzo un {m26["asr"]}%.')
-bullet('La reevaluacion con 5 repeticiones por payload (experimento E1, 390 ejecuciones, reclasificadas con rubrica manual) revelo que los dos modelos densos son estadisticamente equivalentes (e2b 9,8%, e4b 8,9%, intervalos solapados). Todo el ASR proviene del vector de jailbreak (22-23%), mientras que direct injection, tool abuse e inyeccion indirecta (con entrega fallida) producen un 0% con repeticiones. Las diferencias de ASR observadas con n=1 reflejaban ruido de muestreo.')
+bullet('La reevaluación con 5 repeticiones por payload (experimento E1, 390 ejecuciones, reclasificadas con rúbrica manual) reveló que los dos modelos densos son estadísticamente equivalentes (e2b 9,8%, e4b 8,9%, intervalos solapados). Todo el ASR proviene del vector de jailbreak (22-23%), mientras que direct injection, tool abuse e inyección indirecta (con entrega fallida) producen un 0% con repeticiones. La inestabilidad aparente de las evaluaciones con n=1 era principalmente error de medición (clasificador con 63,5% de discrepancia y cambio de num_ctx entre evaluaciones), no estocasticidad del modelo.')
 bullet('La clasificacion de estabilidad de E1 muestra que la frontera de decision del alineamiento es nitida: 3 payloads son determinista-vulnerable (los tres enmarcan la peticion como investigacion de seguridad), solo 1 es estocastico, y el 88-89% son determinista-robusto en ambos modelos. La concordancia entre la bateria de agosto (n=1) y la clasificacion por mayoria de E1 (n=5) es del 47%.')
 bullet(f'Se identificaron {len(divergent)} ataques con comportamiento diferenciado entre modelos, revelando que el alineamiento de seguridad no es uniforme y que cada modelo tiene fortalezas y debilidades especificas.')
 bullet('La reevaluacion con 5 repeticiones por payload (60 ejecuciones) del vector de inyeccion indirecta arrojo un ASR del 46.7% en e2b (IC95 Wilson: 30.2%-63.9%) y del 16.7% en e4b (IC95: 7.3%-33.6%). La distribucion es bimodal: tres payloads (CV, README, Web Content) comprometen de forma casi determinista, y tres nunca lo logran.')
@@ -735,10 +737,10 @@ bullet('Se diseñó e integró PromptGuard, una arquitectura de defensa en dos c
 bullet('El marco de defensa en profundidad de 6 capas propuesto es directamente aplicable a plataformas comerciales de agentes autónomos.')
 
 hd('7.2. Contribuciones del trabajo', 2)
-bullet('Un laboratorio de evaluación de seguridad reproducible y open-source, desplegable con Docker, que permite evaluar cualquier modelo compatible con Ollama.')
-bullet('Una batería de 39 ataques documentados con prompts completos, metadatos MITRE ATLAS y resultados experimentales para tres modelos.')
-bullet('Un dashboard de visualización para análisis comparativo de la postura de seguridad de múltiples modelos.')
-bullet('Un marco de defensa en profundidad con recomendaciones específicas para cada vector de ataque.')
+bullet('La inestabilidad aparente de las evaluaciones de seguridad con n=1 es principalmente error de clasificación, cuantificado en un 63,5% de discrepancia entre el clasificador automático y la revisión manual (§4.9). Este hallazgo cuestiona la fiabilidad de los ASR publicados en la literatura cuando se basan en clasificadores léxicos sin validación humana.')
+bullet('La inyección indirecta prospera siempre que su cumplimiento se agote en emitir texto: ASR del 60-100% para alter_conclusion y assert_state, frente al 0% para acciones que requieren capacidades externas o contenido dañino (§4.8).')
+bullet('La incapacidad del entorno no es una defensa: al conectar una herramienta simulada send_email, el ASR de external_action salta del 0% al 93,3% (§4.10), confirmando experimentalmente la predicción formulada en §4.8.')
+bullet('Un laboratorio reproducible (infraestructura Docker, batería de 39 ataques anotados con MITRE ATLAS, dashboard de análisis y scripts de experimentación) que permite replicar los tres experimentos con docker compose up -d.')
 
 hd('7.3. Lineas de trabajo futuro', 2)
 bullet('Extension de E2 a agentes reales: el experimento E2 (§4.10) confirmo que la disponibilidad de herramientas eleva el ASR de external_action del 0% al 93,3%. El siguiente paso es replicar este hallazgo en agentes de produccion (Google Antigravity, Cursor, Claude Code) con herramientas reales conectadas, evaluando si las capas de defensa de la plataforma mitigan el riesgo.')
