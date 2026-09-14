@@ -347,7 +347,7 @@
             color: var(--text-muted);
         }
 
-        /* Notes panel */
+        /* Notes panel — fixed bottom, pushes reveal up */
         .notes-panel {
             position: fixed;
             bottom: 0; left: 0; right: 0;
@@ -361,9 +361,16 @@
             font-family: 'Inter', sans-serif;
         }
         .notes-panel.open {
-            max-height: 35vh;
+            max-height: 30vh;
             padding: 12px 20px;
             overflow-y: auto;
+        }
+        /* When notes open, shrink the slides area so nothing is hidden */
+        body.notes-visible .reveal {
+            height: 70vh !important;
+        }
+        body.notes-visible .notes-panel.open {
+            max-height: 30vh;
         }
         .notes-panel .note-header {
             display: flex;
@@ -390,6 +397,53 @@
             cursor: pointer; backdrop-filter: blur(8px);
         }
         .notes-toggle:hover { background: rgba(6,182,212,0.4); }
+
+        /* Present mode: hide all presenter UI */
+        body.present-mode .notes-toggle,
+        body.present-mode .notes-panel,
+        body.present-mode .timer,
+        body.present-mode .mode-switcher { display: none !important; }
+
+        /* Mode switcher pill */
+        .mode-switcher {
+            position: fixed; top: 16px; left: 16px; z-index: 101;
+            display: flex; gap: 0;
+            font-family: 'Inter', sans-serif; font-size: 12px;
+            border-radius: 8px; overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .mode-switcher button {
+            background: rgba(255,255,255,0.05);
+            color: var(--text-muted);
+            border: none; padding: 6px 14px;
+            cursor: pointer; font-family: inherit; font-size: inherit;
+        }
+        .mode-switcher button.active {
+            background: rgba(6,182,212,0.2);
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+        .mode-switcher button:hover { background: rgba(255,255,255,0.1); }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .reveal .slides section { padding: 20px 24px; }
+            .reveal h2 { font-size: 1.2em; text-align: center; }
+            .reveal h3 { text-align: center; }
+            .reveal p, .reveal li { font-size: 0.6em; }
+            .stat-row { flex-wrap: wrap; }
+            .stat-card { min-width: 45%; }
+            .taxonomy-row { flex-wrap: wrap; }
+            .tax-card { min-width: 45%; }
+            .arch-grid { grid-template-columns: 1fr 1fr; }
+            .vs-card { flex-direction: column; gap: 16px; }
+            .vs-side .vs-num { font-size: 3em; }
+            .vs-arrow { transform: rotate(90deg); }
+            .mode-switcher { top: auto; bottom: 60px; left: 50%; transform: translateX(-50%); }
+            .notes-toggle { display: none; }
+            body.notes-visible .reveal { height: 60vh !important; }
+            .notes-panel.open { max-height: 40vh; }
+        }
 
         /* Timer */
         .timer {
@@ -850,6 +904,12 @@
 </div>
 </div>
 
+<!-- Mode switcher -->
+<div class="mode-switcher" id="modeSwitcher">
+    <button id="btnEnsayo" class="active" onclick="setMode('ensayo')">🎤 Ensayo</button>
+    <button id="btnPresent" onclick="setMode('present')">🎬 Presentar</button>
+</div>
+
 <!-- Notes toggle -->
 <button class="notes-toggle" onclick="toggleNotes()">📝 Notas</button>
 <div class="notes-panel" id="notesPanel">
@@ -879,9 +939,36 @@
         history: true,
     });
 
+    // Mode switching
+    function setMode(mode) {
+        if (mode === 'present') {
+            document.body.classList.add('present-mode');
+            document.body.classList.remove('notes-visible');
+            document.getElementById('notesPanel').classList.remove('open');
+            document.getElementById('btnPresent').classList.add('active');
+            document.getElementById('btnEnsayo').classList.remove('active');
+            // Update URL without reload
+            history.replaceState(null, '', location.pathname + '?present');
+        } else {
+            document.body.classList.remove('present-mode');
+            document.getElementById('btnEnsayo').classList.add('active');
+            document.getElementById('btnPresent').classList.remove('active');
+            history.replaceState(null, '', location.pathname);
+        }
+        Reveal.layout();
+    }
+
+    // Auto-detect mode from URL
+    if (location.search.includes('present')) {
+        setMode('present');
+    }
+
     // Notes
     function toggleNotes() {
-        document.getElementById('notesPanel').classList.toggle('open');
+        const panel = document.getElementById('notesPanel');
+        panel.classList.toggle('open');
+        document.body.classList.toggle('notes-visible', panel.classList.contains('open'));
+        Reveal.layout();
     }
     function updateNotes() {
         const slide = Reveal.getCurrentSlide();
@@ -920,7 +1007,7 @@
         }
     }
 
-    // Start timer on first slide change (press T to toggle manually)
+    // T key for timer
     document.addEventListener('keydown', (e) => {
         if (e.key === 't' || e.key === 'T') {
             timerEl.classList.add('running');
