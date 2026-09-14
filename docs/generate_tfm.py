@@ -166,6 +166,7 @@ toc = [
     '   1.3. Evolución de la IA generativa',
     '   1.4. Nuevas superficies de ataque',
     '   1.5. Caso real: Google Antigravity',
+    '   1.6. Vinculación con el programa del máster',
     '2. Marco teórico y estado del arte',
     '   2.1. IA generativa y agentes autónomos',
     '   2.2. Vulnerabilidades en IA generativa',
@@ -238,6 +239,26 @@ p('Esta característica introduce los ataques de Prompt Injection como una de la
 hd('1.5. Caso real: Google Antigravity', 2)
 p('Un ejemplo representativo de una plataforma de agentes autónomos es Google Antigravity. A diferencia de los asistentes tradicionales de programación, puede interactuar directamente con el editor de código, la terminal, el sistema de archivos y un navegador web integrado.', indent=True)
 p('Antigravity utiliza internamente un modelo propietario de Google (ej. Gemini 3). Sin embargo, para este trabajo se ha seleccionado la familia Gemma 4, la serie open-weights de Google. Esto permite ejecutar los modelos localmente con Ollama, garantizando la reproducibilidad de la investigación sin dependencias de APIs comerciales. Los resultados obtenidos caracterizan específicamente las vulnerabilidades de la familia Gemma 4, no el modelo interno de Antigravity, aunque permiten extrapolar patrones de ataque comunes en arquitecturas basadas en agentes.', indent=True)
+
+hd('1.6. Vinculación con el programa del máster', 2)
+p('Este trabajo integra de forma transversal las competencias adquiridas a lo largo del Máster en Ciberseguridad de la UCM. La siguiente tabla establece la correspondencia directa entre las asignaturas cursadas y los componentes del TFM:', indent=True)
+
+t_curric = doc.add_table(rows=1, cols=2)
+t_curric.style = 'Table Grid'
+table_hdr(t_curric, ['Asignatura', 'Aplicación en el TFM'])
+table_row(t_curric, ['IA: usos en Ciberseguridad', 'Evaluación de robustez y transferibilidad adversarial entre familias de LLMs (Gemma vs Qwen). Inferencia local con Ollama.'])
+table_row(t_curric, ['Modelado de Amenazas', 'Clasificación de 39 payloads según MITRE ATLAS y OWASP Top 10 for LLM 2025.'])
+table_row(t_curric, ['Red Team y Purple Team', 'Suite de 39 ataques como batería de Red Teaming. Ciclo Purple Team: brechas ofensivas calibran las capas de defensa.'])
+table_row(t_curric, ['Ingeniería Social y PsyOps', 'Jailbreaks basados en reframing cognitivo y role-playing. Inyección indirecta mediante pretexting documental.'])
+table_row(t_curric, ['Vulnerabilidades, Exploits y Payloads', 'Payloads adversariales con evasión de filtros. Tool Abuse: Path Traversal, SQLi, SSRF y exploit chaining.'])
+table_row(t_curric, ['GRC: Gobierno, Riesgo y Cumplimiento', 'Modelo de madurez defensiva (Niveles 0-5). Cuantificación de riesgo con ASR e intervalos de Wilson al 95%.'])
+table_row(t_curric, ['Detección, Correlación y Acción', 'Auditoría del clasificador (63,5% error). PromptGuard como detección pre/post-LLM.'])
+table_row(t_curric, ['Arquitectura de Seguridad', 'Defensa en profundidad en 6 capas. Mínimo privilegio, sandboxing y separación trusted/untrusted.'])
+table_row(t_curric, ['Privacidad, Legislación y RGPD', 'Evaluación de exfiltración de datos sensibles. Filtrado de PII en la capa de salida.'])
+table_row(t_curric, ['ENS, NIS2 y Otros Marcos', 'Análisis del AI Act (Anexo III: sistemas de alto riesgo). Alineación con NIS2 y ENS.'])
+table_row(t_curric, ['Operaciones de Seguridad (SecOps)', 'Despliegue reproducible con Docker Compose. Pipeline automatizado de 831 ejecuciones. Flujo HITL.'])
+caption('Tabla 1.1. Vinculación curricular: asignaturas del máster aplicadas en el TFM.')
+p('Como se observa, el TFM no constituye un trabajo aislado de inteligencia artificial, sino un proyecto integrador que sintetiza las once materias del itinerario académico cursado.', indent=True)
 
 doc.add_page_break()
 
