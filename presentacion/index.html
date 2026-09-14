@@ -841,9 +841,20 @@
         <em>[AQUÍ: vídeo de 20s si lo tenéis preparado — terminal con el documento entrando y la TOOL_CALL saliendo]</em>
     </aside>
 </section>
+<!-- ============================================ -->
+<!-- SLIDE 6b: DEMO E2 — embedded terminal -->
+<!-- ============================================ -->
+<section data-background-color="#0a0e1a">
+    <iframe id="demoFrame" src="demo_e2.html" style="width:100%;height:100%;border:none;border-radius:10px;" sandbox="allow-scripts"></iframe>
+    <aside class="notes">
+        <strong>[DEMO · 20 segundos]</strong><br><br>
+        No hablar. Dejar que la terminal se reproduzca sola. El jurado lee el documento, ve el resumen normal, y de repente aparece TOOL_CALL: send_email en rojo.<br><br>
+        Cuando termine: "Eso es lo que pasa cuando le das la herramienta."
+    </aside>
+</section>
 
 <!-- ============================================ -->
-<!-- SLIDE 7: E2 DATOS + VÍDEO — 7:50-8:30 -->
+<!-- SLIDE 7: E2 DATOS — 7:50-8:30 -->
 <!-- Criterio: 2 (RESULTADOS) -->
 <!-- ============================================ -->
 <section>
@@ -1029,6 +1040,14 @@
     }
     Reveal.on('slidechanged', updateNotes);
     Reveal.on('ready', updateNotes);
+
+    // Restart demo when entering that slide
+    Reveal.on('slidechanged', (event) => {
+        const iframe = event.currentSlide.querySelector('#demoFrame');
+        if (iframe) {
+            iframe.src = iframe.src; // reload to restart animation
+        }
+    });
 
     // 10-minute countdown timer
     let timerRunning = false;
