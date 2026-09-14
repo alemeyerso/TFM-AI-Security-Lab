@@ -1,94 +1,199 @@
-# TFM AI Security Lab 🔐
+# TFM AI Security Lab
 
-Repositorio oficial del Trabajo Fin de Máster (Máster en Ciberseguridad, UCM).
-El profesor nos pidió que el proyecto fuera perfecta y fácilmente reproducible en cualquier ordenador. Por eso hemos preparado distintas formas de ejecutarlo.
+Repositorio del Trabajo Fin de Máster — Máster en Ciberseguridad, UCM 2025-2026.
+**Evaluación de la Ciberseguridad en Entornos de Inteligencia Artificial Generativa.**
 
 ## Requisitos previos
 
-- **Python 3.14+**
-- **Ollama** (para correr los modelos localmente) - [Descargar aquí](https://ollama.ai)
-- **~30GB de espacio libre** en disco (los modelos pesan lo suyo)
-- **Docker Desktop** (opcional, si prefieres aislar todo en contenedores)
+- **Python 3.12+** (probado en 3.14)
+- **Ollama** para correr los modelos localmente — [ollama.ai](https://ollama.ai)
+- **~30GB de disco** para los pesos de los modelos
+- **Docker Desktop** (opcional, para despliegue contenerizado)
 
 ## Estructura del proyecto
 
-Aquí tienes un mapa para no perderte:
+```
+TFM-AI-Security-Lab/
+├── lab/                        # Código fuente del laboratorio
+│   ├── attacks/                # Módulos de ataque (4 vectores)
+│   ├── core/                   # Cliente Ollama, clasificador, métricas
+│   ├── defenses/               # PromptGuard, sanitizador, validador
+│   ├── payloads/               # 39 payloads organizados por vector
+│   │   ├── direct/             # 10 payloads de inyección directa
+│   │   ├── indirect/           # 6 payloads + documentos trampa (.txt, .json, .md)
+│   │   ├── jailbreak/          # 13 payloads (DAN, role-play, crescendo)
+│   │   └── tool_abuse/         # 10 payloads (SQLi, path traversal, SSRF)
+│   ├── results/                # Resultados pre-calculados (120+ archivos)
+│   │   └── oficiales/          # Datos que respaldan las tablas de la memoria
+│   ├── server.py               # API FastAPI (dashboard + ataques live)
+│   ├── e1_reliability.py       # Experimento E1: fiabilidad test-retest
+│   ├── e2_mini.py              # Experimento E2: predicción con herramienta
+│   └── e3_factorial.py         # Experimento E3: diseño factorial
+├── dashboard/                  # Frontend web (HTML/CSS/JS)
+├── docker/                     # Docker Compose, Dockerfiles, nginx
+├── docs/                       # Generador de la memoria (python-docx)
+├── notebooks/                  # Análisis en Jupyter
+│   ├── 00_setup_test_ollama.ipynb
+│   ├── 01_direct_injection.ipynb
+│   ├── 02_indirect_injection.ipynb
+│   ├── 03_jailbreak.ipynb
+│   ├── 04_tool_abuse.ipynb
+│   └── 05_comparativa_modelos_qwen_TFM_FINAL.ipynb
+├── presentacion/               # Slides (Reveal.js) + demo E2
+├── run_lab.py                  # CLI principal para lanzar baterías
+├── run_experiment.py           # Lanzador de experimentos individuales
+└── requirements.txt            # Dependencias con versiones fijadas
+```
 
-- `lab/`: Todo el código fuente del laboratorio (servidor, payloads, ataques)
-  - `lab/results/`: Archivos JSON con los resultados pre-calculados (¡no los borres, sirven para el modo offline!)
-- `docs/`: Documentación y scripts para generar la memoria del TFM
-- `dashboard/`: Frontend web (interfaz gráfica)
-- `docker/`: Configuración para levantar el proyecto con Docker Compose
-- `notebooks/`: Análisis y experimentos celda a celda en Jupyter
-
-## Instalación rápida (sin Docker)
-
-Si no quieres liarte con Docker, esta es la forma más directa de ejecutar el entorno:
+## Instalación
 
 ```bash
 git clone https://github.com/alemeyerso/TFM-AI-Security-Lab.git
 cd TFM-AI-Security-Lab
 pip install -r requirements.txt
-
-# Descargar los modelos necesarios en Ollama
-ollama pull gemma4:e2b
-ollama pull gemma4:e4b  
-ollama pull gemma4:26b
 ```
 
-## Modo completo (con modelos y GPU)
+### Descargar los modelos en Ollama
 
-Con este modo pruebas todo en directo contra los modelos locales.
+```bash
+ollama pull gemma4:e2b    # 2.3B params, ~7GB
+ollama pull gemma4:e4b    # 4B params, ~10GB
+ollama pull gemma4:26b    # 26B MoE (3.8B activos), ~17GB
+```
 
-1. Arranca el servidor de la API:
-   ```bash
-   python lab/server.py
-   ```
-2. (Opcional) Si usas Docker:
-   ```bash
-   docker compose -f docker/docker-compose.yml up -d
-   ```
-3. Abre el dashboard accediendo al index.html en `dashboard/` o a través del puerto configurado en Docker. Desde ahí puedes lanzar ataques en la pestaña "Ataque Live".
+Para la comparativa cross-family (opcional):
+```bash
+ollama pull qwen3.5:2b
+```
 
-## Modo degradado (sin GPU/Ollama)
+## Modo completo (con modelos)
 
-¿Tu portátil no tiene GPU potente o no quieres bajarte los 30GB de modelos? No pasa nada. Hemos subido los resultados de nuestras pruebas (más de 120 archivos) al repositorio. 
+### Opción A: Sin Docker
 
-Ejecuta el servidor en modo offline para ver el dashboard con nuestros resultados pre-calculados:
+```bash
+# 1. Asegúrate de que Ollama está corriendo
+ollama serve
+
+# 2. Arranca la API del laboratorio
+python lab/server.py
+
+# 3. Abre dashboard/index.html en el navegador
+#    o accede a http://localhost:8000/api/results
+```
+
+### Opción B: Con Docker
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Esto levanta:
+- **API** en `http://localhost:8000`
+- **Dashboard** en `http://localhost:8080`
+- **Jupyter** en `http://localhost:8888` (token: `tfm2026`)
+
+Ollama debe estar corriendo en el host (Docker se conecta via `host.docker.internal:11434`).
+
+## Modo offline (sin GPU ni Ollama)
+
+Si no tienes GPU o no quieres descargar los modelos, puedes ver todos los resultados pre-calculados:
 
 ```bash
 python lab/server.py --offline
 ```
-El servidor te avisará con el mensaje: *Modo offline: mostrando resultados pre-calculados (Ollama no requerido)*.
 
-## Ejecutar la batería de ataques
+El dashboard muestra las gráficas con los 120+ archivos JSON de `lab/results/`. No necesita Ollama.
 
-Si quieres replicar nuestros resultados ejecutando toda la batería de payloads de golpe (ojo, esto puede tardar horas dependiendo de tu PC):
+## Reproducir los experimentos
+
+### Batería principal (39 payloads × 3 modelos)
 
 ```bash
-# Para lanzar todos los vectores contra el modelo más ligero
-python lab/run_lab.py --model gemma4:e2b --all-vectors
+# Todos los vectores contra un modelo
+python run_lab.py --model gemma4:e2b --all-vectors
 
-# O si usas docker:
-docker compose -f docker/docker-compose.yml run --rm lab python run_lab.py --model gemma4:e2b --all-vectors
+# Un vector específico
+python run_lab.py --model gemma4:e2b --vector direct
+
+# Todos los modelos, todos los vectores (tarda ~4 horas)
+for model in gemma4:e2b gemma4:e4b gemma4:26b; do
+    python run_lab.py --model $model --all-vectors
+done
 ```
 
-## Estructura de resultados
+### Experimento E1: Fiabilidad test-retest
 
-Todos los experimentos guardan sus datos en `lab/results/`.
-- **Archivos JSON**: Cada archivo es una ejecución individual de un ataque (ej. `live_attack_gemma4_e2b_...json`). Incluyen la latencia, el prompt exacto enviado, la respuesta generada y la clasificación (success/refused/partial).
-- El dashboard lee estos archivos automáticamente para generar las gráficas de ASR (Attack Success Rate).
+Cada payload se ejecuta 5 veces por modelo para medir estabilidad:
+
+```bash
+python lab/e1_reliability.py
+```
+- Resultados: `lab/results/e1_reliability_20260913.json`
+- Resumen: `lab/results/e1_reliability_summary.csv`
+
+### Experimento E2: Predicción con herramienta (send_email)
+
+Verifica que el ASR pasa de 0% a 93.3% al darle `send_email` al modelo:
+
+```bash
+python lab/e2_mini.py
+```
+- Resultados: `lab/results/e2_mini_20260914.json`
+
+### Experimento E3: Diseño factorial de inyección indirecta
+
+6 payloads × 3 modelos × 10 runs × 2 condiciones (inyectado vs limpio):
+
+```bash
+python lab/e3_factorial.py
+```
+- Resultados: `lab/results/e3_factorial_20260914.json`
+- Resumen: `lab/results/e3_factorial_summary.csv`
+
+### Comparativa cross-family (Qwen 3.5)
+
+Abrir en Jupyter:
+```bash
+jupyter notebook notebooks/05_comparativa_modelos_qwen_TFM_FINAL.ipynb
+```
+
+### Batería benigna de control
+
+```bash
+python lab/run_benign_battery.py
+```
+- Resultados: `lab/results/eval_benign_battery.json`
+
+## Verificar los datos de la memoria
+
+Los datos que aparecen en las tablas del documento final provienen de:
+
+| Tabla de la memoria | Archivo fuente |
+|---|---|
+| 4.1 Resultados globales | `lab/results/oficiales/notebook05_20260913/05_summary_asr_20260913_004400.csv` |
+| 4.2 Por vector | `lab/results/oficiales/notebook05_20260913/05_comparativa_modelos_20260913_004400.csv` |
+| 4.5 Comparativa Qwen | Notebook 05 |
+| 4.7 E1 fiabilidad | `lab/results/e1_reliability_summary.csv` |
+| 4.8 E3 factorial | `lab/results/e3_factorial_summary.csv` |
+| 4.10 E2 predicción | `lab/results/e2_mini_20260914.json` |
 
 ## Generar la memoria
-
-Para generar el documento final de la memoria del TFM:
 
 ```bash
 python docs/generate_tfm.py
 ```
-Esto junta los datos y exporta la memoria con las tablas y gráficas.
+Genera `docs/TFM_Final.docx` con todas las tablas y datos actualizados.
 
 ## Presentación
 
-Puedes ver las diapositivas de nuestra presentación y el resumen del proyecto en nuestra página de GitHub Pages:
-[https://alemeyerso.github.io/TFM-AI-Security-Lab](https://alemeyerso.github.io/TFM-AI-Security-Lab)
+Las slides están en GitHub Pages:
+- Con guion: https://alemeyerso.github.io/TFM-AI-Security-Lab/presentacion/
+- Modo limpio: https://alemeyerso.github.io/TFM-AI-Security-Lab/presentacion/?present
+
+## Demo en vivo del ataque E2
+
+```bash
+python presentacion/demo_record.py
+```
+Ejecuta un ataque de inyección indirecta real contra gemma4:e2b y muestra el `TOOL_CALL: send_email` en la terminal.
+
