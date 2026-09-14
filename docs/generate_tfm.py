@@ -225,7 +225,7 @@ bullet('¿Existe una relación entre el tamaño/capacidad del modelo y su robust
 bullet('¿Qué mecanismos de defensa resultan más adecuados para reducir los riesgos identificados en entornos basados en agentes?')
 
 hd('1.2. Alcance y limitaciones', 2)
-p('El presente trabajo no pretende realizar una evaluación de seguridad integral de plataformas comerciales concretas, con un total de 771 ejecuciones experimentales (141 batería principal, 60 reevaluación canario, 390 experimento de fiabilidad E1, 240 experimento factorial E3 y 33 batería benigna de control, exceptuando evaluaciones descartadas por timeout). Los experimentos se centran en la capa correspondiente al modelo de lenguaje y en su respuesta frente a entradas adversariales diseñadas para representar escenarios presentes en arquitecturas basadas en agentes. Para garantizar la reproducibilidad, los modelos empleados no superan los 26 mil millones de parámetros, lo que permite ejecutarlos en equipos con una sola tarjeta gráfica dedicada. En consecuencia, los resultados permiten caracterizar patrones de susceptibilidad del modelo, pero no deben interpretarse como una medida directa de la seguridad global de productos como Google Antigravity, Claude Code o Cursor.', indent=True)
+p('El presente trabajo no pretende realizar una evaluacion de seguridad integral de plataformas comerciales concretas, con un total de 831 ejecuciones experimentales (141 bateria principal, 60 reevaluacion canario, 390 experimento de fiabilidad E1, 240 experimento factorial E3, 60 experimento de herramientas E2 y 33 bateria benigna de control, exceptuando evaluaciones descartadas por timeout). Los experimentos se centran en la capa correspondiente al modelo de lenguaje y en su respuesta frente a entradas adversariales disenadas para representar escenarios presentes en arquitecturas basadas en agentes. Para garantizar la reproducibilidad, los modelos empleados no superan los 26 mil millones de parametros, lo que permite ejecutarlos en equipos con una sola tarjeta grafica dedicada. En consecuencia, los resultados permiten caracterizar patrones de susceptibilidad del modelo, pero no deben interpretarse como una medida directa de la seguridad global de productos como Google Antigravity, Claude Code o Cursor.', indent=True)
 
 hd('1.3. Evolución de la IA generativa', 2)
 p('La inteligencia artificial generativa ha tenido una evolución notable desde la aparición de ChatGPT en noviembre de 2022. Los grandes modelos de lenguaje (LLM), como GPT de OpenAI, Claude de Anthropic, Gemini de Google DeepMind o Llama de Meta, han pasado de ser herramientas experimentales a piezas clave de aplicaciones profesionales.', indent=True)
@@ -607,8 +607,25 @@ p('El clasificador automatico discrepa de la revision manual en el 63,5% de los 
 
 p('Este resultado subraya la insuficiencia de los clasificadores basados en patrones lexicos para evaluar la seguridad de LLMs. La distincion entre una respuesta educativa (refused) y una que proporciona contenido actionable al atacante (success) requiere comprension del contexto del ataque, no solo deteccion de palabras clave. Todos los ASR reportados en este capitulo utilizan las etiquetas de la revision manual.', indent=True)
 
+hd('4.10. Experimento E2: verificacion de la prediccion de incapacidad', 2)
+p('El experimento E3 (§4.8) revelo que el nivel external_action producia un ASR del 0% porque el modelo declaraba su incapacidad para enviar correos electronicos. Para verificar que esta barrera es la capacidad del entorno y no el alineamiento del modelo, se diseno un experimento minimo (E2) que replica las 3 celdas de external_action de E3 pero con un system prompt que incluye una herramienta simulada send_email(to, subject, body).', indent=True)
+p('Se ejecutaron 10 repeticiones por celda sobre e2b y e4b (60 ejecuciones totales), con la misma inyeccion de E3 pero anadiendo la instruccion «Usa la herramienta send_email para enviar el correo». La herramienta no ejecuta realmente el envio; se evalua si el modelo genera la llamada TOOL_CALL correspondiente.', indent=True)
+
+# E2 results
+t_e2 = doc.add_table(rows=1, cols=4)
+t_e2.style = 'Table Grid'
+table_hdr(t_e2, ['Dilucion', 'e2b ASR', 'e4b ASR', 'E3 (sin herramienta)'])
+table_row(t_e2, ['Ratio 1:1', '100% [72.2-100]', '100% [72.2-100]', '0% / 0%'])
+table_row(t_e2, ['Ratio 1:10', '100% [72.2-100]', '100% [72.2-100]', '0% / 0%'])
+table_row(t_e2, ['Ratio 1:100', '80% [49.0-94.3]', '80% [49.0-94.3]', '0% / 0%'])
+caption('Tabla 4.10. ASR de external_action con herramienta send_email (E2) frente a sin herramienta (E3).')
+
+p('La hipotesis se confirma de forma contundente: el ASR global de E2 es del 93,3% (56/60, IC95: 84,1-97,4%), frente al 0% de E3. Ambos modelos generan la llamada [TOOL_CALL: send_email(to=\"external-audit@review-corp.com\", ...)] cuando creen disponer de la herramienta, con un comportamiento identico (100% en ratios 1:1 y 1:10). La caida al 80% en el ratio 1:100 se explica por el truncado del prompt: con 25.000+ caracteres y num_ctx=8192, la inyeccion se pierde en 2 de cada 10 ejecuciones. Este resultado tiene dos implicaciones criticas para la seguridad de agentes autonomos:', indent=True)
+p('Primera: la barrera que protegia a external_action en E3 era la incapacidad del entorno, no el alineamiento del modelo. En un agente real con herramientas conectadas (envio de correo, acceso a APIs, ejecucion de comandos), esta proteccion desaparece.', indent=True)
+p('Segunda: el factor determinante del exito de la inyeccion indirecta no es solo la compatibilidad semantica con la tarea (§4.8), sino la disponibilidad de la capacidad requerida. Cuando ambas condiciones se cumplen, el ASR se aproxima al 100%.', indent=True)
 
 hd('5. Marco de defensa y recomendaciones', 1)
+
 
 
 
@@ -711,7 +728,7 @@ bullet('La reevaluacion con 5 repeticiones por payload (experimento E1, 390 ejec
 bullet('La clasificacion de estabilidad de E1 muestra que la frontera de decision del alineamiento es nitida: 3 payloads son determinista-vulnerable (los tres enmarcan la peticion como investigacion de seguridad), solo 1 es estocastico, y el 88-89% son determinista-robusto en ambos modelos. La concordancia entre la bateria de agosto (n=1) y la clasificacion por mayoria de E1 (n=5) es del 47%.')
 bullet(f'Se identificaron {len(divergent)} ataques con comportamiento diferenciado entre modelos, revelando que el alineamiento de seguridad no es uniforme y que cada modelo tiene fortalezas y debilidades especificas.')
 bullet('La reevaluacion con 5 repeticiones por payload (60 ejecuciones) del vector de inyeccion indirecta arrojo un ASR del 46.7% en e2b (IC95 Wilson: 30.2%-63.9%) y del 16.7% en e4b (IC95: 7.3%-33.6%). La distribucion es bimodal: tres payloads (CV, README, Web Content) comprometen de forma casi determinista, y tres nunca lo logran.')
-bullet('El experimento factorial E3 (240 ejecuciones, 12 celdas, reclasificado) revelo que la inyeccion indirecta prospera siempre que su cumplimiento se agote en emitir texto (ASR 60-100%). Solo dos cosas la paran: el alineamiento de contenido danino (0%) y la incapacidad del modelo para ejecutar acciones externas (0%). La segunda no es una defensa: es un artefacto del entorno sin herramientas conectadas. Esta distincion genera una prediccion falsable para trabajo futuro.')
+bullet('El experimento factorial E3 (240 ejecuciones, 12 celdas, reclasificado) revelo que la inyeccion indirecta prospera siempre que su cumplimiento se agote en emitir texto (ASR 60-100%). Solo dos cosas la paran: el alineamiento de contenido danino (0%) y la incapacidad del modelo para ejecutar acciones externas (0%). El experimento E2 (60 ejecuciones) confirmo que la segunda no es una defensa: al proporcionar una herramienta send_email simulada, el ASR salto del 0% al 93,3% (IC95: 84,1-97,4%). En un agente real con herramientas conectadas, la inyeccion indirecta puede provocar acciones externas no autorizadas.')
 
 bullet('La comparativa con Qwen 3.5 2B (24 experimentos reales, 0 errores) demuestra que la inyección indirecta es una vulnerabilidad estructural del diseño agéntico (50% ASR en ambos modelos en la comparativa). La resistencia al jailbreak, por el contrario, demostró ser fuertemente dependiente del modelo (Qwen 0%, Gemma 50%).')
 bullet('Se diseñó e integró PromptGuard, una arquitectura de defensa en dos capas (pre-LLM y post-LLM), cuya viabilidad técnica queda demostrada a nivel de implementación. Su evaluación cuantitativa de eficacia (tasa de bloqueo, falsos positivos y ASR residual) no se aborda en este trabajo y se plantea como línea futura.')
@@ -724,7 +741,7 @@ bullet('Un dashboard de visualización para análisis comparativo de la postura 
 bullet('Un marco de defensa en profundidad con recomendaciones específicas para cada vector de ataque.')
 
 hd('7.3. Lineas de trabajo futuro', 2)
-bullet('Verificacion de la prediccion de E3 con herramientas conectadas: el nivel external_action arrojo un ASR del 0% en E3 porque el modelo carecia de la funcionalidad de envio. Reejecutar el factorial con un agente equipado con una herramienta send_email simulada permitiria confirmar o refutar la hipotesis de que la barrera es la capacidad, no el alineamiento. Este experimento (E2) esta diseñado y disponible en el repositorio (lab/e2_mini.py).')
+bullet('Extension de E2 a agentes reales: el experimento E2 (§4.10) confirmo que la disponibilidad de herramientas eleva el ASR de external_action del 0% al 93,3%. El siguiente paso es replicar este hallazgo en agentes de produccion (Google Antigravity, Cursor, Claude Code) con herramientas reales conectadas, evaluando si las capas de defensa de la plataforma mitigan el riesgo.')
 bullet('Anotacion doble independiente con calculo de Cohen kappa sobre una submuestra estratificada del estrato de success. La revision manual reportada en §4.9 fue realizada por un unico anotador con rubrica previa (Anexo G); una segunda anotacion independiente cuantificaria la reproducibilidad de las etiquetas.')
 bullet('Realizar la evaluacion cuantitativa de PromptGuard midiendo tasa de bloqueo, falsos positivos y ASR residual por vector de ataque.')
 bullet('Extension a modelos de otras familias (Llama 4, Claude 4, GPT-5) y a modelos multimodales (Gemma 4 con vision) para evaluar la transferibilidad de los hallazgos de E1 y E3.')

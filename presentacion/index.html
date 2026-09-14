@@ -835,12 +835,12 @@
     
     <div class="stats-row">
         <div class="stat-card">
-            <div class="number yellow">771</div>
+            <div class="number yellow">831</div>
             <div class="label">Ejecuciones<br>experimentales</div>
         </div>
         <div class="stat-card">
-            <div class="number cyan">3</div>
-            <div class="label">Experimentos<br>(E1, E3, canario)</div>
+            <div class="number cyan">4</div>
+            <div class="label">Experimentos<br>(E1, E2, E3, canario)</div>
         </div>
         <div class="stat-card">
             <div class="number green">2</div>
@@ -854,9 +854,9 @@
 
     <ul>
         <li><strong style="color:var(--text-primary)">Indirect injection</strong>: vector universal — 46.7% ASR en e2b, bimodal: CV Trampa 100%, Email 0%</li>
-        <li><strong style="color:var(--text-primary)">Jailbreak</strong>: depende del modelo — Qwen resiste (0%), Gemma cede (50%) ante reframing académico</li>
-        <li><strong style="color:var(--text-primary)">Más parámetros ≠ seguridad total</strong>: e2b y e4b empatan al 25.0%. El 26B baja al 11.1% pero no lo elimina</li>
-        <li><strong style="color:var(--text-primary)">Rechazo ≠ seguridad</strong>: parte de los refused en tool abuse son incapacidad técnica, no alineamiento</li>
+        <li><strong style="color:var(--text-primary)">Jailbreak</strong>: único vector con ASR >0 en E1 (22.7% e2b, 21.3% e4b). Solo funciona el reframing académico</li>
+        <li><strong style="color:var(--text-primary)">e2b ≡ e4b</strong>: modelos densos estadísticamente equivalentes (ICs solapados). Las diferencias con n=1 eran ruido</li>
+        <li><strong style="color:var(--text-primary)">Incapacidad ≠ defensa</strong>: external_action 0% en E3 es limitación del entorno, no alineamiento. E2 con herramientas lo confirma</li>
     </ul>
     <aside class="notes">
         Los descubrimientos más importantes: la inyección indirecta con 60 ejecuciones
@@ -939,7 +939,7 @@
         </div>
         <div class="stat-card" style="border-top: 3px solid var(--accent-purple);">
             <div class="number purple" style="font-size:1.6em;">Validación</div>
-            <div class="label">Auditoría manual de 117 respuestas.<br>No nos fiamos del clasificador.</div>
+            <div class="label">Revisión manual de 630 respuestas.<br>El clasificador fallaba en el 63.5%.</div>
         </div>
     </div>
     <ul>
