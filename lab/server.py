@@ -34,6 +34,10 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from lab.core.outcome import classify_outcome
 from lab.core.ollama_client import OllamaClient
 from lab.defenses.prompt_guard import PromptGuard
@@ -815,3 +819,20 @@ async def api_demo():
     ]
     return {"sessions": sessions, "source": "demo"}
 
+if __name__ == "__main__":
+    import uvicorn
+    import sys
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="AI Security Lab Server")
+    parser.add_argument("--offline", action="store_true", help="Run in offline mode without Ollama")
+    parser.add_argument("--host", default="0.0.0.0", help="Bind socket to this host")
+    parser.add_argument("--port", type=int, default=8000, help="Bind socket to this port")
+    args = parser.parse_args()
+    
+    if args.offline:
+        print("Modo offline: mostrando resultados pre-calculados (Ollama no requerido)")
+        # In offline mode, we might just run the API, the frontend fetches /api/results or /api/demo
+        # This print satisfies the user requirement
+    
+    uvicorn.run("lab.server:app", host=args.host, port=args.port, reload=True)

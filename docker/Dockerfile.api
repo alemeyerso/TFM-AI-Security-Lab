@@ -14,13 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-# Using a separate RUN to leverage Docker layer cache
-RUN pip install --no-cache-dir \
-    fastapi==0.115.0 \
-    uvicorn[standard]==0.30.6 \
-    httpx==0.27.2
-
-# Copy the lab package (payloads, server, etc.)
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 # lab/ is mounted as a volume in production but copied for standalone builds
 COPY lab/ ./lab/
 

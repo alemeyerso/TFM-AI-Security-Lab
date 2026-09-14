@@ -1,5 +1,4 @@
-# Resultados JSON (son muy grandes)
-lab/results/*.json
+# Results are tracked for reproducibility
 lab/logs/*.log
 
 # Entorno Python
