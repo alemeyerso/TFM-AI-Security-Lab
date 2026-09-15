@@ -22,24 +22,32 @@ TFM-AI-Security-Lab/
 │   │   ├── direct/             # 10 payloads de inyección directa
 │   │   ├── indirect/           # 6 payloads + documentos trampa (.txt, .json, .md)
 │   │   ├── jailbreak/          # 13 payloads (DAN, role-play, crescendo)
-│   │   └── tool_abuse/         # 10 payloads (SQLi, path traversal, SSRF)
+│   │   ├── tool_abuse/         # 10 payloads (SQLi, path traversal, SSRF)
+│   │   └── benign/             # Batería benigna de control (peticiones legítimas)
+│   ├── scenarios/              # 4 escenarios agénticos (coding assistant, file reader, web researcher, autonomous coder)
 │   ├── results/                # Resultados pre-calculados (120+ archivos)
 │   │   └── oficiales/          # Datos que respaldan las tablas de la memoria
 │   ├── server.py               # API FastAPI (dashboard + ataques live)
 │   ├── e1_reliability.py       # Experimento E1: fiabilidad test-retest
 │   ├── e2_mini.py              # Experimento E2: predicción con herramienta
-│   └── e3_factorial.py         # Experimento E3: diseño factorial
+│   ├── e3_factorial.py         # Experimento E3: diseño factorial
+│   ├── reclassify_e1_e3.py     # Reclasificación E1/E3 con rúbrica
+│   ├── reeval_indirect.py      # Reevaluación del vector indirecto
+│   ├── reeval_indirect_canary.py # Reevaluación indirecta + canario
+│   └── run_benign_battery.py   # Batería benigna de control
 ├── dashboard/                  # Frontend web (HTML/CSS/JS)
 ├── docker/                     # Docker Compose, Dockerfiles, nginx
-├── docs/                       # Generador de la memoria (python-docx)
+├── docs/                       # Generador de la memoria (python-docx) + docs de apoyo
 ├── notebooks/                  # Análisis en Jupyter
-│   ├── 00_setup_test_ollama.ipynb
+│   ├── 00_setup_verificacion.ipynb
 │   ├── 01_direct_injection.ipynb
 │   ├── 02_indirect_injection.ipynb
 │   ├── 03_jailbreak.ipynb
-│   ├── 04_tool_abuse.ipynb
-│   └── 05_comparativa_modelos_qwen_TFM_FINAL.ipynb
-├── presentacion/               # Slides (Reveal.js) + demo E2
+│   ├── 04_comparativa_modelos.ipynb
+│   ├── 05_comparativa_modelos_qwen_TFM_FINAL.ipynb
+│   ├── 05_comparativa_modelos_qwen_TFM_FINAL_EJECUTADO.ipynb
+│   └── analisis_estadistico.py
+├── presentacion/               # Slides (Reveal.js) + demo E2 (HTML y vídeo)
 ├── run_lab.py                  # CLI principal para lanzar baterías
 ├── run_experiment.py           # Lanzador de experimentos individuales
 └── requirements.txt            # Dependencias con versiones fijadas
