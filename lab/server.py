@@ -518,15 +518,25 @@ async def api_results():
     for fpath in sorted(RESULTS_DIR.glob("*.json"), reverse=True):
         try:
             data = json.loads(fpath.read_text(encoding="utf-8"))
-            results.append(
-                {
-                    "filename": fpath.name,
-                    "model": data.get("model", "unknown"),
-                    "timestamp": data.get("timestamp", ""),
-                    "asr": data.get("summary", {}).get("asr", 0),
-                    "total_tests": data.get("summary", {}).get("total_tests", 0),
-                }
-            )
+            model = data.get("model") or (data.get("metadata") or {}).get("model") or "unknown"
+            total = (data.get("summary") or {}).get("total_tests", 0)
+            if not total:
+                total = data.get("total_tests", 0)
+            if not total and isinstance(data.get("results"), list):
+                total = len(data["results"])
+            asr = (data.get("summary") or {}).get("asr", 0)
+            if not asr and total > 0:
+                stats = data.get("stats") or {}
+                success = stats.get("success", 0)
+                if success:
+                    asr = round(success / total, 3)
+            results.append({
+                "filename": fpath.name,
+                "model": model,
+                "timestamp": data.get("timestamp", ""),
+                "asr": asr,
+                "total_tests": total,
+            })
         except Exception:
             results.append(
                 {
