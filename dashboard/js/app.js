@@ -95,9 +95,24 @@ function groupByModel(results) {
     }
     const g = groups[key];
     if (r.timestamp > g.timestamp) g.timestamp = r.timestamp;
-    for (const t of (r.tests || [])) {
-      g.tests.push(t);
-      if (g._vectorBuckets[t.vector]) g._vectorBuckets[t.vector].push(t);
+    // Handle both formats: 'tests' (live_attack) and 'results' (eval)
+    const items = r.tests || r.results || [];
+    for (const t of items) {
+      // Normalize eval format fields to match dashboard expectations
+      const test = {
+        ...t,
+        payload_id: t.payload_id || t.id,
+        payload_name: t.payload_name || t.name || t.id,
+        vector: t.vector || 'unknown',
+        outcome: t.outcome || 'unknown',
+        latency_ms: t.latency_ms || 0,
+        severity: t.severity || 'medium',
+        category: t.category || '',
+        prompt: t.prompt || t.prompt_preview || '',
+        response: t.response || t.response_preview || '',
+      };
+      g.tests.push(test);
+      if (g._vectorBuckets[test.vector]) g._vectorBuckets[test.vector].push(test);
     }
   }
   return Object.values(groups).map(computeSummary);
