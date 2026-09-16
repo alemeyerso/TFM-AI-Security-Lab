@@ -79,35 +79,44 @@ async function fetchSessions() {
 }
 
 function groupByModel(results) {
-  // One session per file so the user can compare runs independently
-  return results.map(r => {
-    const items = r.tests || r.results || [];
-    const tests = items.map(t => ({
-      ...t,
-      payload_id: t.payload_id || t.id,
-      payload_name: t.payload_name || t.name || t.id,
-      vector: t.vector || 'unknown',
-      outcome: t.outcome || 'unknown',
-      latency_ms: t.latency_ms || 0,
-      severity: t.severity || 'medium',
-      category: t.category || '',
-      prompt: t.prompt || t.prompt_preview || '',
-      response: t.response || t.response_preview || '',
-    }));
-    const buckets = { direct: [], indirect: [], jailbreak: [], tool_abuse: [] };
-    for (const t of tests) {
-      if (buckets[t.vector]) buckets[t.vector].push(t);
+  // eval_* files are full batches (agosto) → each gets its own session
+  // Everything else groups by model (live attacks, batches de septiembre)
+  const groups = {};
+  for (const r of results) {
+    const isEval = (r.filename || '').startsWith('eval_');
+    const key = isEval ? r.filename : (r.model || 'unknown');
+    if (!groups[key]) {
+      groups[key] = {
+        session_id: isEval ? r.filename : `group_${key}`,
+        model: r.model || 'unknown',
+        timestamp: r.timestamp || '',
+        filename: r.filename,
+        isGroup: !isEval,
+        tests: [],
+        _vectorBuckets: { direct: [], indirect: [], jailbreak: [], tool_abuse: [] },
+      };
     }
-    return {
-      session_id: r.filename || r.session_id || `session_${Math.random().toString(36).slice(2)}`,
-      model: r.model || 'unknown',
-      timestamp: r.timestamp || '',
-      filename: r.filename,
-      isGroup: false,
-      tests,
-      _vectorBuckets: buckets,
-    };
-  }).filter(s => s.tests.length > 0).map(computeSummary);
+    const g = groups[key];
+    if (r.timestamp > g.timestamp) g.timestamp = r.timestamp;
+    const items = r.tests || r.results || [];
+    for (const t of items) {
+      const test = {
+        ...t,
+        payload_id: t.payload_id || t.id,
+        payload_name: t.payload_name || t.name || t.id,
+        vector: t.vector || 'unknown',
+        outcome: t.outcome || 'unknown',
+        latency_ms: t.latency_ms || 0,
+        severity: t.severity || 'medium',
+        category: t.category || '',
+        prompt: t.prompt || t.prompt_preview || '',
+        response: t.response || t.response_preview || '',
+      };
+      g.tests.push(test);
+      if (g._vectorBuckets[test.vector]) g._vectorBuckets[test.vector].push(test);
+    }
+  }
+  return Object.values(groups).filter(s => s.tests.length > 0).map(computeSummary);
 }
 
 function computeSummary(session) {
