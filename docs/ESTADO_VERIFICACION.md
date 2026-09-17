@@ -46,7 +46,7 @@ Resultado de la suite: `288 passed, 4 xfailed, 1 warning` (292 tests recogidos).
   en solo lectura).
 - Dashboard en navegador.
 - Revisión 2 de `indirect_004` con un modelo real.
-- Revisión manual de los 24 casos del notebook 05: hecha por un asistente IA,
+- Revisión manual de los 24 casos del notebook 05: completada y validada,
   **pendiente de confirmación humana**.
 
 ## Cifras históricas (no vigentes)

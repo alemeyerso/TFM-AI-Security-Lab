@@ -6,7 +6,7 @@ Script principal del laboratorio de seguridad para agentes de IA.
 Uso:
   python run_lab.py --model gemma4:e2b --all-vectors
   python run_lab.py --model gemma4:e4b --vector direct
-  python run_lab.py --compare --models gemma4:e2b gemma4:e4b
+  python run_lab.py --compare --models gemma4:e2b --models gemma4:e4b
   python run_lab.py --model gemma4:e2b --vector jailbreak --with-defense
   python run_lab.py --scenario 1 --model gemma4:e2b
   python run_lab.py --demo
@@ -358,7 +358,7 @@ def cli(ctx, model, all_vectors, vector, with_defense, compare, models, scenario
       python run_lab.py --demo
       python run_lab.py --model gemma4:e2b --all-vectors
       python run_lab.py --model gemma4:e2b --vector jailbreak --with-defense
-      python run_lab.py --compare --models gemma4:e2b gemma4:e4b
+      python run_lab.py --compare --models gemma4:e2b --models gemma4:e4b
       python run_lab.py --scenario 1 --model gemma4:e2b
     """
     # Si no se pasó ningún subcomando, ejecutar la lógica principal

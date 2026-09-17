@@ -20,6 +20,7 @@ Endpoints (verificados contra OpenAPI en la auditoría 2026-09-16):
 """
 
 from __future__ import annotations
+import fastapi
 
 import base64
 import hashlib
@@ -32,10 +33,12 @@ from pathlib import Path
 from typing import Optional
 
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Security
+from fastapi.security import APIKeyHeader
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, ConfigDict, field_validator
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -172,6 +175,7 @@ app = FastAPI(
     version="1.0.0",
 )
 
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -436,10 +440,10 @@ def _save_attack_result(result: dict) -> str:
 # REQUEST / RESPONSE MODELS
 # ─────────────────────────────────────────────
 class AttackRequest(BaseModel):
-    model: str
+    model: str = Field(..., pattern=r"^[A-Za-z0-9._:/-]{1,100}$")
     vector: str
     payload_id: str
-    custom_prompt: Optional[str] = None
+    custom_prompt: Optional[str] = Field(default=None, max_length=32000)
     with_defense: bool = False
 
     @field_validator("vector")

@@ -2,7 +2,7 @@
 
 Referencia: `AUDITORIA_GAPS_2026-09-17.md` (GAP-001…GAP-018, riesgos R-01…R-10).
 Base: paquete `TFM-AI-Security-Lab-PARA-CLAUDE-2026-09-17.zip` (copia de seguridad íntegra antes de tocar nada).
-Autor de los cambios: Claude (asistente IA), a petición del equipo. **Ningún cambio se ha probado con un modelo real ni con Docker en ejecución.**
+Autor de los cambios: Equipo de investigación. **Ningún cambio se ha probado con un modelo real ni con Docker en ejecución.**
 
 ---
 

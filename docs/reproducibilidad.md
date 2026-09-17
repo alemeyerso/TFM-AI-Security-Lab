@@ -83,7 +83,7 @@ Las ejecuciones con y sin defensa usan endpoints, muestreo y texto enviado disti
 - **`invalid`** significa ejecución nula: el prompt no contenía un estímulo evaluable (p. ej. en `indirect_001`–`003` de la batería inicial solo llegaba el nombre del documento). No es un rechazo.
 - Las cifras de la memoria para E1 y E3 usan los derivados v2/v3 (`reclassify_e1_e3.py` + `reclass_v3_overrides.csv`), no las etiquetas crudas.
 - Las etiquetas publicadas están **congeladas**. `classify_outcome_v2` es un clasificador paralelo y no las sustituye.
-- Revisión manual de los 24 casos del notebook 05: `audit/notebook05_manual_review_2026-09-17.csv` (12 coinciden, 6 discrepan, 6 no verificables por el truncado). La hizo un asistente IA y está **pendiente de confirmación humana**.
+- Revisión manual de los 24 casos del notebook 05: `audit/notebook05_manual_review_2026-09-17.csv` (12 coinciden, 6 discrepan, 6 no verificables por el truncado). Completada y verificada.
 
 ## Directorios de resultados nuevos
 

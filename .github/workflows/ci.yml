@@ -21,7 +21,8 @@ jobs:
           cache: pip
 
       - name: Instalar dependencias
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt pip-audit
+        pip-audit
 
       - name: Compilar todo el código
         run: python -m compileall -q lab tests run_lab.py run_experiment.py docs/generate_tfm.py

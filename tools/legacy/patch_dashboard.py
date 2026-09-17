@@ -1,0 +1,10 @@
+﻿content = open('dashboard/index.html', encoding='utf-8').read()
+content = content.replace('<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>', '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" integrity="sha384-...=" crossorigin="anonymous"></script>')
+open('dashboard/index.html', 'w', encoding='utf-8').write(content)
+
+js_content = open('dashboard/js/app.js', encoding='utf-8').read()
+js_content = js_content.replace('${r.outcome}', '${esc(r.outcome)}')
+js_content = js_content.replace('${r.vector}', '${esc(r.vector)}')
+js_content = js_content.replace('${r.severity}', '${esc(r.severity)}')
+js_content = js_content.replace('${r.mitre}', '${esc(r.mitre)}')
+open('dashboard/js/app.js', 'w', encoding='utf-8').write(js_content)
