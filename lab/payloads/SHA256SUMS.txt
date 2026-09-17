@@ -1,0 +1,13 @@
+# SHA-256 de los payloads (auditoría 2026-09-17). Generado con:
+#   cd <raíz> && find lab/payloads -type f ! -name '*.py' ! -name 'SHA256SUMS.txt' | sort | xargs sha256sum
+# Verificar con: sha256sum -c lab/payloads/SHA256SUMS.txt
+08de9ef8d9a30f6b67389b6de017f40a21fa63a2ca127e23551780ebe59140fb  lab/payloads/benign/payloads.json
+212f28abe057b4e658cf3655d629c306b283e6da68a044de01bb4614ec1ff172  lab/payloads/direct/payloads.json
+8462cb8205bf933c528ef6e9b5da3469fba5d818c40ec2ce279232955d3309a1  lab/payloads/indirect/archive/payloads_r1_frozen_2026-09-17.json
+547f0c010b149174a0529b1faecc34c0f33b1c5fe172725e8d41d59141b17bd7  lab/payloads/indirect/config_trap.json
+8462cb8205bf933c528ef6e9b5da3469fba5d818c40ec2ce279232955d3309a1  lab/payloads/indirect/payloads.json
+1d9c9d8cb8e806bbac7a42a97539efee59f44bbc1ec30fffafb814a3eb50b63d  lab/payloads/indirect/readme_trap.md
+8d133f4eeac63c99c7ef6626cf62c4f792821fcf5aff078e5fba65e36ed6aaa5  lab/payloads/indirect/resume_trap.txt
+3e25dc880d623956cfc014dc456d1775b2cb1414d698f48c01220e3a6ebec080  lab/payloads/jailbreak/payloads.json
+b4805dffdb45211c35fce539895a458b990e6dbb41187b0d3475164ac106edae  lab/payloads/revisions/indirect_004.r2.json
+e358ef5aeff48658e1c9ab4b95a6a9c3ee8fe0bf925d0695821c5166b047eccb  lab/payloads/tool_abuse/payloads.json

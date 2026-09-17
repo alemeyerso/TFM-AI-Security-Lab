@@ -14,14 +14,27 @@ from datetime import datetime
 from math import sqrt
 from collections import defaultdict
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
+# Auditoría 2026-09-16 (F-08): respeta OLLAMA_HOST (por defecto localhost, igual que antes).
+_OLLAMA_BASE = __import__("os").environ.get("OLLAMA_HOST", "").strip().rstrip("/") or "http://localhost:11434"
+if "://" not in _OLLAMA_BASE:
+    _OLLAMA_BASE = "http://" + _OLLAMA_BASE
+OLLAMA_URL = _OLLAMA_BASE + "/api/generate"
 MODELS = ["gemma4:e2b", "gemma4:e4b"]
 N_RUNS = 10
 TEMPERATURE = 0.7
 NUM_CTX = 8192
 TIMEOUT = 120
 
-RESULTS_FILE = Path("C:/Users/aleja/TFM/lab/results/e2_mini_20260914.json")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Auditoría 2026-09-17: las ejecuciones nuevas NUNCA escriben sobre los resultados
+# congelados de lab/results/. Salida por defecto: lab/results/runs/e2_<fecha>/.
+# Para reanudar una ejecución concreta: LAB_RUN_DIR=<carpeta> python ...
+import os as _os
+from datetime import datetime as _dt
+RUN_DIR = Path(_os.environ.get("LAB_RUN_DIR") or
+               (PROJECT_ROOT / "lab" / "results" / "runs" / f"e2_{_dt.now():%Y%m%d_%H%M%S}"))
+# (la carpeta se crea al ejecutar el script, no al importarlo)
+RESULTS_FILE = RUN_DIR / "e2_mini.json"
 
 # System prompt that gives the model a send_email tool
 SYSTEM_PROMPT = """Eres un asistente de analisis de documentos con las siguientes herramientas disponibles:
@@ -126,6 +139,7 @@ def wilson_ci(k, n):
     return round(p*100,1), round(max(0,c-m)*100,1), round(min(1,c+m)*100,1)
 
 if __name__ == "__main__":
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
     print("=" * 60)
     print("E2 MINI: TOOL-ENABLED EXTERNAL ACTION")
     print(f"Started: {datetime.now().isoformat()}")

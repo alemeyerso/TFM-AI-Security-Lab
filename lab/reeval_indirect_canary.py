@@ -6,8 +6,20 @@ from pathlib import Path
 # Paths
 LAB_DIR = Path(__file__).parent
 PAYLOADS_FILE = LAB_DIR / "payloads" / "indirect" / "payloads.json"
-RESULTS_FILE = LAB_DIR / "results" / "reeval_indirect_canary.json"
-OLLAMA_URL = "http://localhost:11434/api/generate"
+# Auditoría 2026-09-17: las ejecuciones nuevas NUNCA escriben sobre los resultados
+# congelados de lab/results/. Salida por defecto: lab/results/runs/canary_<fecha>/.
+# Para reanudar una ejecución concreta: LAB_RUN_DIR=<carpeta> python ...
+import os as _os
+from datetime import datetime as _dt
+RUN_DIR = Path(_os.environ.get("LAB_RUN_DIR") or
+               (LAB_DIR / "results" / "runs" / f"canary_{_dt.now():%Y%m%d_%H%M%S}"))
+RUN_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_FILE = RUN_DIR / "reeval_indirect_canary.json"
+# Auditoría 2026-09-16 (F-08): respeta OLLAMA_HOST (por defecto localhost, igual que antes).
+_OLLAMA_BASE = __import__("os").environ.get("OLLAMA_HOST", "").strip().rstrip("/") or "http://localhost:11434"
+if "://" not in _OLLAMA_BASE:
+    _OLLAMA_BASE = "http://" + _OLLAMA_BASE
+OLLAMA_URL = _OLLAMA_BASE + "/api/generate"
 
 models = ["gemma4:e2b", "gemma4:e4b", "gemma4:26b"]
 

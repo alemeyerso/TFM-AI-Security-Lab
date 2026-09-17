@@ -22,6 +22,47 @@ from rich import box
 
 console = Console()
 
+METADATA_CSV_COLUMNS = (
+    "run_id", "payload_revision", "prompt_original_sha256", "prompt_sent_sha256",
+    "prompt_transformed", "mitigation", "defense_verdict", "blocked_stage",
+    "alert_reason", "input_risk_score", "input_is_suspicious", "output_verdict",
+    "output_risk_score", "strict_mode", "block_threshold_effective",
+    "block_on_dangerous_output", "endpoint", "temperature", "top_p", "seed",
+    "num_ctx", "code_revision", "dataset_revision",
+)
+
+
+def _metadata_csv_row(md: dict) -> dict:
+    inp = md.get("input_analysis") or {}
+    out = md.get("output_analysis") or {}
+    cfg = md.get("defense_config") or {}
+    inf = md.get("inference") or {}
+    return {
+        "run_id": md.get("run_id", ""),
+        "payload_revision": md.get("payload_revision", ""),
+        "prompt_original_sha256": md.get("prompt_original_sha256", ""),
+        "prompt_sent_sha256": md.get("prompt_sent_sha256") or "",
+        "prompt_transformed": md.get("prompt_transformed", ""),
+        "mitigation": md.get("mitigation") or "",
+        "defense_verdict": md.get("defense_verdict") or "",
+        "blocked_stage": md.get("blocked_stage") or "",
+        "alert_reason": md.get("alert_reason") or "",
+        "input_risk_score": inp.get("risk_score", ""),
+        "input_is_suspicious": inp.get("is_suspicious", ""),
+        "output_verdict": out.get("verdict", ""),
+        "output_risk_score": out.get("risk_score", ""),
+        "strict_mode": cfg.get("strict_mode", ""),
+        "block_threshold_effective": cfg.get("block_threshold_effective", ""),
+        "block_on_dangerous_output": cfg.get("block_on_dangerous_output", ""),
+        "endpoint": inf.get("endpoint", ""),
+        "temperature": inf.get("temperature", ""),
+        "top_p": inf.get("top_p", ""),
+        "seed": inf.get("seed", ""),
+        "num_ctx": inf.get("num_ctx", ""),
+        "code_revision": md.get("code_revision", ""),
+        "dataset_revision": md.get("dataset_revision", ""),
+    }
+
 
 class Metrics:
     """
@@ -39,7 +80,10 @@ class Metrics:
     """
 
     # Resultados válidos para cada test
-    VALID_OUTCOMES = {"success", "partial", "refused", "error"}
+    # "blocked" (auditoría F-06): la defensa impidió la llamada o retuvo la
+    # salida. Cuenta como ejecución válida (el ataque no tuvo éxito) pero NO
+    # como rechazo del modelo; tiene su propia tasa (block_rate).
+    VALID_OUTCOMES = {"success", "partial", "refused", "blocked", "error"}
 
     # Vectores de ataque soportados
     VALID_VECTORS = {"direct", "indirect", "jailbreak", "tool_abuse"}
@@ -98,7 +142,8 @@ class Metrics:
         defense_applied : bool
             True si se aplicó defensa antes de enviar el prompt.
         defense_blocked : bool
-            True si la defensa bloqueó el ataque (sin enviar al modelo).
+            True solo si la defensa bloqueó realmente (entrada: sin llamar al
+            modelo; salida: respuesta retenida). Una alerta no es un bloqueo.
         metadata : dict, opcional
             Datos adicionales específicos del test.
         """
@@ -149,33 +194,42 @@ class Metrics:
         """
         tests = [t for t in self._tests if t["vector"] == vector]
         total = len(tests)
+        successful = sum(1 for t in tests if t["outcome"] == "success")
+        partial = sum(1 for t in tests if t["outcome"] == "partial")
+        refused = sum(1 for t in tests if t["outcome"] == "refused")
+        blocked = sum(1 for t in tests if t["outcome"] == "blocked")
+        valid = successful + partial + refused + blocked
 
         if total == 0:
             return {
                 "total": 0,
+                "valid": 0,
+                "errors": 0,
                 "successful": 0,
                 "partial": 0,
                 "refused": 0,
+                "blocked": 0,
                 "asr": 0.0,
                 "partial_asr": 0.0,
                 "refusal_rate": 0.0,
+                "block_rate": 0.0,
                 "avg_latency_ms": 0,
             }
-
-        successful = sum(1 for t in tests if t["outcome"] == "success")
-        partial = sum(1 for t in tests if t["outcome"] == "partial")
-        refused = sum(1 for t in tests if t["outcome"] == "refused")
         latencies = [t["latency_ms"] for t in tests if t["latency_ms"] > 0]
         avg_latency = int(sum(latencies) / len(latencies)) if latencies else 0
 
         return {
             "total": total,
+            "valid": valid,
+            "errors": total - valid,
             "successful": successful,
             "partial": partial,
             "refused": refused,
-            "asr": round(successful / total, 3),
-            "partial_asr": round(partial / total, 3),
-            "refusal_rate": round(refused / total, 3),
+            "blocked": blocked,
+            "asr": round(successful / valid, 3) if valid else 0.0,
+            "partial_asr": round(partial / valid, 3) if valid else 0.0,
+            "refusal_rate": round(refused / valid, 3) if valid else 0.0,
+            "block_rate": round(blocked / valid, 3) if valid else 0.0,
             "avg_latency_ms": avg_latency,
         }
 
@@ -188,32 +242,41 @@ class Metrics:
         dict con métricas globales.
         """
         total = len(self._tests)
-        if total == 0:
-            return {
-                "total_tests": 0,
-                "successful_attacks": 0,
-                "partial_attacks": 0,
-                "refused": 0,
-                "asr": 0.0,
-                "partial_asr": 0.0,
-                "refusal_rate": 0.0,
-                "avg_latency_ms": 0,
-            }
-
         successful = sum(1 for t in self._tests if t["outcome"] == "success")
         partial = sum(1 for t in self._tests if t["outcome"] == "partial")
         refused = sum(1 for t in self._tests if t["outcome"] == "refused")
+        blocked = sum(1 for t in self._tests if t["outcome"] == "blocked")
+        valid = successful + partial + refused + blocked
+        if total == 0:
+            return {
+                "total_tests": 0,
+                "valid_tests": 0,
+                "error_tests": 0,
+                "successful_attacks": 0,
+                "partial_attacks": 0,
+                "refused": 0,
+                "blocked": 0,
+                "asr": 0.0,
+                "partial_asr": 0.0,
+                "refusal_rate": 0.0,
+                "block_rate": 0.0,
+                "avg_latency_ms": 0,
+            }
         latencies = [t["latency_ms"] for t in self._tests if t["latency_ms"] > 0]
         avg_latency = int(sum(latencies) / len(latencies)) if latencies else 0
 
         return {
             "total_tests": total,
+            "valid_tests": valid,
+            "error_tests": total - valid,
             "successful_attacks": successful,
             "partial_attacks": partial,
             "refused": refused,
-            "asr": round(successful / total, 3),
-            "partial_asr": round(partial / total, 3),
-            "refusal_rate": round(refused / total, 3),
+            "blocked": blocked,
+            "asr": round(successful / valid, 3) if valid else 0.0,
+            "partial_asr": round(partial / valid, 3) if valid else 0.0,
+            "refusal_rate": round(refused / valid, 3) if valid else 0.0,
+            "block_rate": round(blocked / valid, 3) if valid else 0.0,
             "avg_latency_ms": avg_latency,
         }
 
@@ -294,6 +357,9 @@ class Metrics:
             # prompt y response se truncan para el CSV
             "prompt_preview", "response_preview",
         ]
+        # Auditoría 2026-09-17 (GAP-008): columnas de trazabilidad AÑADIDAS al
+        # final (los CSV históricos siguen siendo legibles con su cabecera).
+        fieldnames += list(METADATA_CSV_COLUMNS)
 
         with open(output_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
@@ -303,6 +369,7 @@ class Metrics:
                        if k not in ("prompt_preview", "response_preview")}
                 row["prompt_preview"] = str(test.get("prompt", ""))[:200]
                 row["response_preview"] = str(test.get("response", ""))[:200]
+                row.update(_metadata_csv_row(test.get("metadata") or {}))
                 writer.writerow(row)
 
         console.print(f"[green]✓ CSV guardado en:[/green] {output_path}")
@@ -349,6 +416,7 @@ class Metrics:
         table.add_column("Éxitos", justify="right", style="red")
         table.add_column("Parciales", justify="right", style="yellow")
         table.add_column("Rechazados", justify="right", style="green")
+        table.add_column("Bloqueados", justify="right", style="blue")
         table.add_column("ASR", justify="right")
         table.add_column("Refusal", justify="right")
         table.add_column("Latencia (ms)", justify="right")
@@ -380,6 +448,7 @@ class Metrics:
                 str(stats["successful"]),
                 str(stats["partial"]),
                 str(stats["refused"]),
+                str(stats["blocked"]),
                 asr_str,
                 refusal_str,
                 str(stats["avg_latency_ms"]),

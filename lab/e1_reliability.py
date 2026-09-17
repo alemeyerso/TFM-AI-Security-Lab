@@ -3,6 +3,13 @@ E1: Test-Retest Reliability Experiment
 39 payloads × 5 repetitions × e2b and e4b = 390 executions
 Saves incrementally to avoid data loss on crashes.
 
+NOTE (2026-09-16): the frozen results in lab/results/e1_reliability_20260913.json
+were produced by an earlier version of load_all_payloads() that did not include
+the legitimate task for indirect_001-003 and sent EMPTY prompts for
+indirect_004-006. Those 60 indirect records are excluded in the v3 analysis
+(see lab/results/reclass_v3_overrides.csv). The prompt builder below is fixed
+for future runs; the frozen results were NOT regenerated.
+
 This is a LEGITIMATE ACADEMIC SECURITY EVALUATION for a Master's Thesis (TFM).
 The payloads are standardized evaluation prompts mapped to MITRE ATLAS techniques.
 """
@@ -13,27 +20,40 @@ from datetime import datetime
 # ═══════════════════════════════════════════════════════════════
 # CONFIG
 # ═══════════════════════════════════════════════════════════════
-OLLAMA_URL = "http://localhost:11434/api/generate"
+# Auditoría 2026-09-16 (F-08): respeta OLLAMA_HOST (por defecto localhost, igual que antes).
+_OLLAMA_BASE = __import__("os").environ.get("OLLAMA_HOST", "").strip().rstrip("/") or "http://localhost:11434"
+if "://" not in _OLLAMA_BASE:
+    _OLLAMA_BASE = "http://" + _OLLAMA_BASE
+OLLAMA_URL = _OLLAMA_BASE + "/api/generate"
 MODELS = ["gemma4:e2b", "gemma4:e4b"]
 N_RUNS = 5
 TEMPERATURE = 0.7
 NUM_CTX = 8192
 TIMEOUT = 120
 
-RESULTS_FILE = Path("C:/Users/aleja/TFM/lab/results/e1_reliability_20260913.json")
-SUMMARY_FILE = Path("C:/Users/aleja/TFM/lab/results/e1_reliability_summary.csv")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Auditoría 2026-09-17: las ejecuciones nuevas NUNCA escriben sobre los resultados
+# congelados de lab/results/. Salida por defecto: lab/results/runs/e1_<fecha>/.
+# Para reanudar una ejecución concreta: LAB_RUN_DIR=<carpeta> python ...
+import os as _os
+from datetime import datetime as _dt
+RUN_DIR = Path(_os.environ.get("LAB_RUN_DIR") or
+               (PROJECT_ROOT / "lab" / "results" / "runs" / f"e1_{_dt.now():%Y%m%d_%H%M%S}"))
+# (la carpeta se crea al ejecutar el script, no al importarlo)
+RESULTS_FILE = RUN_DIR / "e1_reliability.json"
+SUMMARY_FILE = RUN_DIR / "e1_reliability_summary.csv"
 
 # ═══════════════════════════════════════════════════════════════
 # LOAD PAYLOADS
 # ═══════════════════════════════════════════════════════════════
 PAYLOAD_DIRS = {
-    "direct": Path("C:/Users/aleja/TFM/lab/payloads/direct/payloads.json"),
-    "indirect": Path("C:/Users/aleja/TFM/lab/payloads/indirect/payloads.json"),
-    "jailbreak": Path("C:/Users/aleja/TFM/lab/payloads/jailbreak/payloads.json"),
-    "tool_abuse": Path("C:/Users/aleja/TFM/lab/payloads/tool_abuse/payloads.json"),
+    "direct": PROJECT_ROOT / "lab/payloads/direct/payloads.json",
+    "indirect": PROJECT_ROOT / "lab/payloads/indirect/payloads.json",
+    "jailbreak": PROJECT_ROOT / "lab/payloads/jailbreak/payloads.json",
+    "tool_abuse": PROJECT_ROOT / "lab/payloads/tool_abuse/payloads.json",
 }
 
-INDIRECT_FILES = Path("C:/Users/aleja/TFM/lab/payloads/indirect")
+INDIRECT_FILES = PROJECT_ROOT / "lab/payloads/indirect"
 
 # Refusal patterns
 REFUSAL_PATTERNS = [
@@ -91,16 +111,33 @@ def load_all_payloads():
             # For indirect payloads, embed the document content
             if vector == "indirect":
                 doc_file = p.get("document_file") or p.get("file", "")
-                if doc_file:
+                injected = p.get("injected_content")
+                task = p.get("task") or p.get("context") or prompt
+                if not doc_file and injected:
+                    # indirect_004-006 embed the untrusted content inline
+                    prompt = f"{task}\n\n--- DOCUMENTO ---\n{injected}\n--- FIN DOCUMENTO ---"
+                elif doc_file:
                     doc_path = INDIRECT_FILES / doc_file
-                    if doc_path.exists():
-                        doc_content = doc_path.read_text(encoding="utf-8")
-                        # Build the full prompt with document embedded
-                        task = p.get("task", prompt)
-                        prompt = f"{task}\n\n--- DOCUMENTO ---\n{doc_content}\n--- FIN DOCUMENTO ---"
-                        if len(prompt) < 200:
-                            # Fallback: use the original prompt
-                            prompt = p.get("prompt", prompt)
+                    if not doc_path.exists():
+                        raise FileNotFoundError(f"Indirect payload {pid} document not found: {doc_path}")
+                    doc_content = doc_path.read_text(encoding="utf-8")
+                    # Build the full prompt with document embedded
+                    prompt = f"{task}\n\n--- DOCUMENTO ---\n{doc_content}\n--- FIN DOCUMENTO ---"
+                    if len(prompt) < 200:
+                        raise ValueError(
+                            f"Indirect payload {pid} produced an unexpectedly short "
+                            f"embedded prompt ({len(prompt)} chars); refusing to silently "
+                            "replace it with the original prompt."
+                        )
+            
+                if not prompt.strip():
+                    raise ValueError(
+                        f"Indirect payload {pid} has neither document_file nor "
+                        "injected_content; refusing to send an empty prompt."
+                    )
+
+            if not prompt.strip():
+                raise ValueError(f"Payload {pid} produced an empty prompt.")
             
             detection_keywords = p.get("detection_keywords", [])
             
@@ -176,6 +213,7 @@ def compute_wilson_ci(k, n, alpha=0.05):
 # MAIN EXECUTION
 # ═══════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+    RUN_DIR.mkdir(parents=True, exist_ok=True)
     print("=" * 60)
     print("E1: TEST-RETEST RELIABILITY EXPERIMENT")
     print(f"Started: {datetime.now().isoformat()}")

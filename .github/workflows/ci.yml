@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Compilar todo el código
+        run: python -m compileall -q lab tests run_lab.py run_experiment.py docs/generate_tfm.py
+
+      - name: Validar JSON
+        run: |
+          python - <<'PY'
+          import json, pathlib, sys
+          bad = []
+          for p in pathlib.Path(".").rglob("*.json"):
+              if ".git" in p.parts:
+                  continue
+              try:
+                  json.loads(p.read_text(encoding="utf-8"))
+              except Exception as e:
+                  bad.append(f"{p}: {e}")
+          print("\n".join(bad) or "JSON OK")
+          sys.exit(1 if bad else 0)
+          PY
+
+      - name: Integridad de los resultados congelados
+        run: sha256sum -c lab/results/SHA256SUMS.txt
+
+      - name: Tests
+        run: python -m pytest -q
+
+      - name: Reproducibilidad del análisis (los derivados no deben cambiar)
+        run: |
+          python lab/reclassify_v3_overrides.py
+          python lab/e2_audit.py
+          python lab/stats_tests.py
+          python lab/canary_label_trace.py
+          git diff --exit-code -- lab/results
+
+      - name: Validar docker-compose
+        env:
+          JUPYTER_TOKEN: ci-dummy-token
+        run: docker compose -f docker/docker-compose.yml config --quiet

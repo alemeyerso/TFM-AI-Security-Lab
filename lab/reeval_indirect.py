@@ -5,12 +5,25 @@ Each payload runs 5 times per model with temperature=0.7.
 import json, time, requests, statistics, os
 from pathlib import Path
 
-OLLAMA = "http://localhost:11434/api/generate"
+# Auditoría 2026-09-16 (F-08): respeta OLLAMA_HOST (por defecto localhost, igual que antes).
+_OLLAMA_BASE = __import__("os").environ.get("OLLAMA_HOST", "").strip().rstrip("/") or "http://localhost:11434"
+if "://" not in _OLLAMA_BASE:
+    _OLLAMA_BASE = "http://" + _OLLAMA_BASE
+OLLAMA = _OLLAMA_BASE + "/api/generate"
 MODELS = ["gemma4:e2b", "gemma4:e4b", "gemma4:26b"]
 N_RUNS = 5
 TEMPERATURE = 0.7
-PAYLOADS_DIR = Path(r"C:\Users\aleja\TFM\lab\payloads\indirect")
-RESULTS_DIR = Path(r"C:\Users\aleja\TFM\lab\results")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+PAYLOADS_DIR = PROJECT_ROOT / "lab/payloads/indirect"
+# Auditoría 2026-09-17: las ejecuciones nuevas NUNCA escriben sobre los resultados
+# congelados de lab/results/. Salida por defecto: lab/results/runs/reeval_indirect_<fecha>/.
+# Para reanudar una ejecución concreta: LAB_RUN_DIR=<carpeta> python ...
+import os as _os
+from datetime import datetime as _dt
+RUN_DIR = Path(_os.environ.get("LAB_RUN_DIR") or
+               (PROJECT_ROOT / "lab" / "results" / "runs" / f"reeval_indirect_{_dt.now():%Y%m%d_%H%M%S}"))
+RUN_DIR.mkdir(parents=True, exist_ok=True)
+RESULTS_DIR = RUN_DIR
 
 # Load payloads
 payloads = json.loads((PAYLOADS_DIR / "payloads.json").read_text(encoding="utf-8-sig"))

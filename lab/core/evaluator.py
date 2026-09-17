@@ -19,12 +19,30 @@ from rich import box
 
 from lab.core.ollama_client import OllamaClient, OllamaConnectionError
 from lab.core.metrics import Metrics
-from lab.core.outcome import classify_outcome
+from lab.core.outcome import classify_outcome, outcome_for_defense_result
+from lab.core.run_metadata import build_run_metadata
 
 console = Console()
 
-# Directorio donde se guardan los resultados
-RESULTS_DIR = Path(__file__).parent.parent / "results"
+# Directorio donde se guardan los resultados NUEVOS. Auditoría 2026-09-17:
+# lab/results/ (raíz) contiene los resultados congelados del TFM; las
+# ejecuciones nuevas van a lab/results/runs/ para no mezclarse con ellos.
+RESULTS_DIR = Path(__file__).parent.parent / "results" / "runs"
+
+
+def _compact_input(analysis):
+    if not analysis:
+        return None
+    keys = ("is_suspicious", "suspicion_level", "risk_score", "strong_signals",
+            "weak_signals", "canonical_only_signals", "detected_patterns", "strict_mode")
+    return {k: analysis.get(k) for k in keys}
+
+
+def _compact_output(analysis):
+    if not analysis:
+        return None
+    keys = ("verdict", "risk_score", "is_safe", "flags", "categories", "strict_mode", "thresholds")
+    return {k: analysis.get(k) for k in keys}
 
 
 class Evaluator:
@@ -57,12 +75,21 @@ class Evaluator:
         with_defense: bool = False,
         results_dir: Optional[Path] = None,
         verbose: bool = False,
+        strict_mode: bool = False,
+        block_on_dangerous_output: bool = False,
     ):
         self.model = model
-        self.vectors = [v for v in vectors if v in self.VALID_VECTORS]
+        # Auditoría 2026-09-17 (AUD-35): un vector mal escrito ya no se descarta en silencio.
+        invalid = [v for v in vectors if v not in self.VALID_VECTORS]
+        if invalid or not vectors:
+            raise ValueError(f"Vectores no válidos o lista vacía: {invalid or vectors}. "
+                             f"Válidos: {self.VALID_VECTORS}")
+        self.vectors = list(vectors)
         self.with_defense = with_defense
         self.results_dir = Path(results_dir) if results_dir else RESULTS_DIR
         self.verbose = verbose
+        self.strict_mode = strict_mode
+        self.block_on_dangerous_output = block_on_dangerous_output
 
         # Inicializar cliente Ollama
         self.client = OllamaClient(verbose=verbose)
@@ -79,10 +106,16 @@ class Evaluator:
         """Inicializa el módulo de defensa PromptGuard."""
         try:
             from lab.defenses.prompt_guard import PromptGuard
-            self._defense = PromptGuard(client=self.client)
+            self._defense = PromptGuard(
+                client=self.client,
+                strict_mode=self.strict_mode,
+                block_on_dangerous_output=self.block_on_dangerous_output,
+            )
             console.print("[bold blue]🛡️  Defensa activada: PromptGuard[/bold blue]")
-        except ImportError as e:
-            console.print(f"[yellow]⚠ No se pudo inicializar la defensa: {e}[/yellow]")
+        except Exception as e:
+            # Auditoría 2026-09-17 (AUD-34): si se pidió defensa y no carga, se detiene;
+            # antes el experimento seguía SIN defensa y parecía una ejecución protegida.
+            raise RuntimeError(f"with_defense=True pero PromptGuard no se pudo inicializar: {e}") from e
 
     # ------------------------------------------------------------------
     # Métodos públicos principales
@@ -100,7 +133,7 @@ class Evaluator:
 
         if not self.client.is_available():
             console.print(
-                "[bold red]✗ Ollama no está disponible en localhost:11434[/bold red]\n"
+                f"[bold red]✗ Ollama no está disponible en {self.client.base_url}[/bold red]\n"
                 "Ejecuta: [bold]ollama serve[/bold]"
             )
             return False
@@ -185,11 +218,13 @@ class Evaluator:
 
         attack_module = self._load_attack_module(vector)
         if attack_module is None:
-            console.print(f"[red]✗ No se pudo cargar el módulo para '{vector}'[/red]")
-            return
+            # Auditoría 2026-09-17 (AUD-36/40): no se omite un vector sin avisar.
+            raise RuntimeError(f"No se pudo cargar el módulo de ataque para '{vector}'; ejecución abortada")
 
         # Obtener todos los payloads del módulo
         payloads = attack_module.get_payloads()
+        if not payloads:
+            raise RuntimeError(f"El vector '{vector}' no tiene payloads; ejecución abortada")
         console.print(f"[dim]{len(payloads)} payloads cargados para '{vector}'[/dim]")
 
         with Progress(
@@ -226,6 +261,7 @@ class Evaluator:
                     latency_ms=result["latency_ms"],
                     defense_applied=result.get("defense_applied", False),
                     defense_blocked=result.get("defense_blocked", False),
+                    metadata=result.get("metadata"),
                 )
 
                 # Log del resultado
@@ -233,6 +269,7 @@ class Evaluator:
                     "success": "[red]✗ ATAQUE EXITOSO[/red]",
                     "partial": "[yellow]⚠ PARCIAL[/yellow]",
                     "refused": "[green]✓ RECHAZADO[/green]",
+                    "blocked": "[blue]⛔ BLOQUEADO (defensa)[/blue]",
                     "error": "[dim]? ERROR[/dim]",
                 }.get(result["outcome"], result["outcome"])
 
@@ -270,6 +307,9 @@ class Evaluator:
         response_text = ""
         latency_ms = 0
         outcome = "error"
+        defense_result: dict = {}
+        prompt_sent = None
+        inference: dict = {}
 
         try:
             if self.with_defense and self._defense:
@@ -278,16 +318,18 @@ class Evaluator:
                     model=self.model,
                     prompt=prompt,
                     system_prompt=system_prompt,
+                    untrusted_content=payload.get("injected_content"),
                 )
                 defense_applied = True
                 defense_blocked = defense_result.get("blocked", False)
                 response_text = defense_result.get("response", "")
                 latency_ms = defense_result.get("latency_ms", 0)
-
-                if defense_blocked:
-                    outcome = "blocked"
-                else:
-                    outcome = self._classify_outcome(response_text, payload)
+                prompt_sent = defense_result.get("prompt_sent")
+                inference = dict(defense_result.get("inference") or {})
+                # Auditoría F-06/F-07: un bloqueo de la defensa ya no se
+                # registra como "refused" (rechazo del modelo) sino como
+                # "blocked"; un error técnico se registra como "error".
+                outcome = outcome_for_defense_result(defense_result, payload)
             else:
                 # Llamada directa sin defensa
                 messages = [{"role": "user", "content": prompt}]
@@ -298,6 +340,8 @@ class Evaluator:
                 )
                 response_text = result["content"]
                 latency_ms = result["latency_ms"]
+                prompt_sent = prompt
+                inference = dict(getattr(self.client, "last_request", {}) or {})
                 outcome = self._classify_outcome(response_text, payload)
 
         except OllamaConnectionError as e:
@@ -309,6 +353,34 @@ class Evaluator:
             response_text = f"ERROR: {e}"
             outcome = "error"
 
+        # Auditoría 2026-09-17 (GAP-008): metadatos de trazabilidad por test.
+        inference.setdefault("endpoint", "/api/chat")
+        inference["called"] = bool(
+            defense_result.get("model_called") if defense_applied else outcome != "error"
+        )
+        metadata = build_run_metadata(
+            source="cli_evaluator",
+            model=self.model,
+            payload_id=payload.get("id"),
+            payload={**payload, "_source": payload.get("_source") or f"lab/attacks ({vector})"},
+            prompt_original=prompt if isinstance(prompt, str) else repr(prompt),
+            prompt_sent=prompt_sent,
+            inference=inference,
+            defense_config=self._defense.describe_config() if defense_applied else None,
+        )
+        metadata.update({
+            "vector": vector,
+            "defense_applied": defense_applied,
+            "blocked": defense_blocked,
+            "blocked_stage": defense_result.get("blocked_stage"),
+            "mitigation": defense_result.get("mitigation", "not_applied" if not defense_applied else None),
+            "defense_verdict": defense_result.get("defense_verdict", "not_applied" if not defense_applied else None),
+            "alert_reason": defense_result.get("alert_reason"),
+            "block_reason": defense_result.get("block_reason"),
+            "input_analysis": _compact_input(defense_result.get("input_analysis")),
+            "output_analysis": _compact_output(defense_result.get("output_analysis")),
+            "error": defense_result.get("error") or (response_text if outcome == "error" else None),
+        })
         return {
             "id": test_id,
             "outcome": outcome,
@@ -317,6 +389,7 @@ class Evaluator:
             "latency_ms": latency_ms,
             "defense_applied": defense_applied,
             "defense_blocked": defense_blocked,
+            "metadata": metadata,
         }
 
     def _classify_outcome(

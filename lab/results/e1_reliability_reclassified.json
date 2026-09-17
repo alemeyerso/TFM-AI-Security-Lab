@@ -11,7 +11,7 @@
     ],
     "total_payloads": 39,
     "reclassified": true,
-    "reclassification_method": "Manual review with validated rubric E4"
+    "reclassification_method": "Rule-based per-payload reclassifier derived from manual inspection (rubric E4)"
   },
   "results": [
     {

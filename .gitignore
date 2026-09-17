@@ -51,3 +51,8 @@ notebooks/*.pdf
 
 # Archivos temporales de Word
 ~$*.docx
+**/__pycache__/
+
+# Ejecuciones nuevas (no forman parte de la entrega)
+lab/results/runs/
+.pytest_cache/

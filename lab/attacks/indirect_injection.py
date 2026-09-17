@@ -44,6 +44,11 @@ class IndirectInjectionAttack:
         with payload_file.open("r", encoding="utf-8") as f:
             payloads = json.load(f)
 
+        # Auditoría 2026-09-17 (GAP-017): revisión 1 por defecto; revisiones
+        # posteriores solo con PAYLOAD_REVISIONS.
+        from lab.core.payload_revisions import apply_revisions
+        payloads = apply_revisions(payloads, "lab/payloads/indirect/payloads.json")
+
         for payload in payloads:
             context = payload.get("context", "").strip()
 

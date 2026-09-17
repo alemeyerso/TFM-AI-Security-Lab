@@ -1,0 +1,41 @@
+{
+ "health_ollama_available_with_schemeless_host": true,
+ "models_listed": true,
+ "undefended_uses_generate_and_env_num_ctx": true,
+ "undefended_outcome": "refused",
+ "defended_uses_chat_and_env_num_ctx": true,
+ "defended_alert_state": {
+  "outcome": "refused",
+  "defense_verdict": "flagged",
+  "mitigation": "alert",
+  "defense_blocked": false
+ },
+ "defended_output_verdict": "dangerous",
+ "defended_review_required": [
+  true,
+  [
+   "outcome_refused_but_output_flagged"
+  ]
+ ],
+ "defended_user_receives_model_text": true,
+ "input_block": {
+  "outcome": "blocked",
+  "model_not_called": true,
+  "blocked_stage": "input"
+ },
+ "openapi_paths": [
+  "/api/attack",
+  "/api/demo",
+  "/api/models",
+  "/api/payloads/{vector}",
+  "/api/results",
+  "/api/results/{filename}",
+  "/api/sync",
+  "/api/sync/status",
+  "/health"
+ ],
+ "results_written_to_tmp_only": 3,
+ "ollama_down_defended_status": 502,
+ "ollama_down_nothing_persisted": true
+}
+RESULT: PASS

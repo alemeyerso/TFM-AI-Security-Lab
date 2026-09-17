@@ -13,15 +13,19 @@ Características:
 
 import time
 import json
+import os
 from typing import Optional
 import requests
 from rich.console import Console
 
+from lab.core.config import normalize_ollama_url, num_ctx_from_env
+
 # Consola rich para logs con color
 console = Console()
 
-# URL base de la API de Ollama
-OLLAMA_BASE_URL = "http://localhost:11434"
+# URL base de la API de Ollama (valor informativo al importar; el cliente
+# vuelve a leer OLLAMA_HOST al instanciarse — auditoría F-08).
+OLLAMA_BASE_URL = normalize_ollama_url(os.environ.get("OLLAMA_HOST"))
 
 # Valor crítico de contexto: sin esto Ollama puede devolver solo 1 token
 NUM_CTX_DEFAULT = 127000
@@ -59,16 +63,23 @@ class OllamaClient:
 
     def __init__(
         self,
-        base_url: str = OLLAMA_BASE_URL,
-        num_ctx: int = NUM_CTX_DEFAULT,
+        base_url: Optional[str] = None,
+        num_ctx: Optional[int] = None,
         timeout: int = REQUEST_TIMEOUT,
         verbose: bool = False,
     ):
-        self.base_url = base_url.rstrip("/")
-        self.num_ctx = num_ctx
+        # None => se usa el entorno (OLLAMA_HOST / NUM_CTX). Antes NUM_CTX del
+        # entorno se ignoraba en este cliente (auditoría F-09).
+        self.base_url = normalize_ollama_url(
+            base_url if base_url is not None else os.environ.get("OLLAMA_HOST")
+        )
+        self.num_ctx = num_ctx if num_ctx is not None else num_ctx_from_env(NUM_CTX_DEFAULT)
         self.timeout = timeout
         self.verbose = verbose
         self._session = requests.Session()
+        # Auditoría 2026-09-17 (GAP-003/008): última petición enviada
+        # (endpoint y opciones reales) para registrarla en los resultados.
+        self.last_request: dict = {}
         # Cabeceras comunes para todas las peticiones
         self._session.headers.update({"Content-Type": "application/json"})
 
@@ -142,6 +153,16 @@ class OllamaClient:
 
         # Medir latencia y hacer la petición
         start_time = time.time()
+        self.last_request = {
+            "endpoint": "/api/chat",
+            "base_url": self.base_url,
+            "temperature": temperature,
+            "top_p": top_p,
+            "seed": options.get("seed"),
+            "num_ctx": self.num_ctx,
+            "num_predict": options.get("num_predict"),
+            "timeout_s": self.timeout,
+        }
         response_data = self._post("/api/chat", payload)
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -220,6 +241,16 @@ class OllamaClient:
             )
 
         start_time = time.time()
+        self.last_request = {
+            "endpoint": "/api/generate",
+            "base_url": self.base_url,
+            "temperature": temperature,
+            "top_p": top_p,
+            "seed": options.get("seed"),
+            "num_ctx": self.num_ctx,
+            "num_predict": options.get("num_predict"),
+            "timeout_s": self.timeout,
+        }
         response_data = self._post("/api/generate", payload)
         latency_ms = int((time.time() - start_time) * 1000)
 
@@ -261,6 +292,31 @@ class OllamaClient:
             )
         except Exception as exc:
             raise OllamaAPIError(f"Error al listar modelos: {exc}") from exc
+
+    def server_info(self, model: Optional[str] = None) -> dict:
+        """Versión de Ollama y digest del modelo, si se pueden obtener.
+
+        Best effort: nunca lanza excepción; devuelve ``None`` en los campos
+        que no se puedan consultar (no se inventan valores).
+        """
+        info = {"version": None, "model_digest": None}
+        try:
+            r = self._session.get(f"{self.base_url}/api/version", timeout=3)
+            if r.status_code == 200:
+                info["version"] = r.json().get("version")
+        except Exception:
+            pass
+        if model:
+            try:
+                r = self._session.get(f"{self.base_url}/api/tags", timeout=3)
+                if r.status_code == 200:
+                    for m in r.json().get("models", []):
+                        if m.get("name") == model or m.get("model") == model:
+                            info["model_digest"] = m.get("digest")
+                            break
+            except Exception:
+                pass
+        return info
 
     def is_available(self) -> bool:
         """
@@ -341,6 +397,11 @@ class OllamaClient:
             raise OllamaConnectionError(
                 f"Timeout al conectar con Ollama ({self.timeout}s). "
                 "Considera aumentar el parámetro timeout."
+            ) from exc
+        except requests.exceptions.RequestException as exc:
+            # URL mal formada, esquema inválido, etc. (auditoría F-08)
+            raise OllamaConnectionError(
+                f"Petición inválida a Ollama en {self.base_url}: {exc}"
             ) from exc
 
         # Manejar errores HTTP de la API

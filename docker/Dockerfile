@@ -13,7 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
     # Ollama corre en el HOST, no en Docker
     # En Windows/Mac usa host.docker.internal
     # En Linux usa la IP del host o extra_hosts
-    OLLAMA_HOST=host.docker.internal:11434 \
+    OLLAMA_HOST=http://host.docker.internal:11434 \
     DEFAULT_MODEL=gemma4:e2b \
     NUM_CTX=127000 \
     RESULTS_DIR=/lab/lab/results \
@@ -30,6 +30,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código del laboratorio
 COPY lab/ ./lab/
+COPY tests/ ./tests/
 COPY run_lab.py .
 
 # Crear directorios necesarios

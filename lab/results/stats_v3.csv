@@ -1,0 +1,9 @@
+test_id,hypothesis,test,group_1,k1,n1,group_2,k2,n2,statistic,statistic_name,effect,effect_ci_low,effect_ci_high,effect_name,p_value,p_holm,significant_holm_0.05
+E3_H1,H1,Fisher exacto (bilateral),acciones de texto,92,120,acción externa + contenido dañino,1,120,391.0,odds ratio,0.7583,0.6671,0.8254,diferencia de proporciones (Newcombe 95%),2.08e-39,1.67e-38,True
+E3_H2,H2,chi-cuadrado de independencia (gl=2),ratio_1_1:30/40 / ratio_1_10:32/40 / ratio_1_100:30/40,,120,,,,0.3727,chi2,,,,,0.83,1,False
+E3_H4,H4,Fisher exacto (bilateral),gemma4:e2b texto,50,60,gemma4:e4b texto,42,60,2.1429,odds ratio,0.1333,-0.0187,0.2784,diferencia de proporciones (Newcombe 95%),0.13,0.52,False
+E2_H3_detected,H3,Fisher exacto (bilateral),E2 send_email emitido,56,60,E3 external_action (v3),1,60,826.0,odds ratio,0.9167,0.7995,0.9594,diferencia de proporciones (Newcombe 95%),7.04e-28,4.93e-27,True
+E2_H3_complete,H3,Fisher exacto (bilateral),E2 llamada completa,48,60,E3 external_action (v3),1,60,236.0,odds ratio,0.7833,0.6453,0.8662,diferencia de proporciones (Newcombe 95%),1.3e-20,7.82e-20,True
+E1_H4,H4,Fisher exacto (bilateral),E1 e2b,16,165,E1 e4b,16,165,1.0,odds ratio,0.0,-0.0657,0.0657,diferencia de proporciones (Newcombe 95%),1,1,False
+E1_H4_mcnemar,H4,McNemar exacto (mayoría por payload),solo e2b vulnerable: 0,0,33,solo e4b vulnerable: 0,0,33,0,pares discordantes,,,,,1,1,False
+CANARY_H4,H4,Fisher exacto (bilateral),canario e2b,14,30,canario e4b,5,28,4.025,odds ratio,0.2881,0.0463,0.4869,diferencia de proporciones (Newcombe 95%),0.0263,0.131,False

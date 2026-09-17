@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # lab/ is mounted as a volume in production but copied for standalone builds
@@ -23,6 +22,14 @@ COPY lab/ ./lab/
 # Create results directory (will be overridden by volume mount)
 RUN mkdir -p ./lab/results
 
+# Auditoría 2026-09-17 (GAP-014): la API no se ejecuta como root.
+# UID 1000 para que, en Linux, pueda escribir en ../lab/results montado
+# (ajústalo si tu usuario del host tiene otro UID). NO VERIFICADO con Docker
+# real en la auditoría (no había daemon disponible).
+RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin labapi \
+    && chown -R labapi:labapi /app/lab/results
+USER labapi
+
 # Expose FastAPI port
 EXPOSE 8000
 
@@ -30,5 +37,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-# Run with uvicorn in reload mode (volume mount makes this useful in dev)
-CMD ["uvicorn", "lab.server:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Run uvicorn in production-style mode (reload disabled for reproducibility)
+CMD ["uvicorn", "lab.server:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -9,8 +9,8 @@
 # Uso:
 #   docker compose -f docker/docker-compose.yml up -d           # Arrancar todo
 #   docker compose -f docker/docker-compose.yml up api dashboard # API + Dashboard
-#   docker compose -f docker/docker-compose.yml run lab --demo  # Demo del lab
-#   docker compose -f docker/docker-compose.yml run lab --model gemma4:e2b --all
+#   docker compose -f docker/docker-compose.yml run --rm lab python run_lab.py --demo
+#   docker compose -f docker/docker-compose.yml run --rm lab python run_lab.py --model gemma4:e2b --all-vectors
 # =============================================================
 
 services:
@@ -32,7 +32,7 @@ services:
     
     environment:
       # Ollama en el host (Windows/Mac)
-      - OLLAMA_HOST=host.docker.internal:11434
+      - OLLAMA_HOST=http://host.docker.internal:11434
       - DEFAULT_MODEL=${DEFAULT_MODEL:-gemma4:e2b}
       - NUM_CTX=${NUM_CTX:-127000}
       - RESULTS_DIR=/lab/lab/results
@@ -47,7 +47,7 @@ services:
     tty: true
     
     # No ejecutar automáticamente — lanzar ataques explícitamente:
-    # docker compose run --rm lab python run_lab.py --model gemma4:e2b --all
+    # docker compose run --rm lab python run_lab.py --model gemma4:e2b --all-vectors
     command: python run_lab.py --help
     
     # No reiniciar automáticamente (es un comando, no un servicio)
@@ -62,7 +62,7 @@ services:
     container_name: ai-security-dashboard
     
     ports:
-      - "${DASHBOARD_PORT:-8080}:80"
+      - "127.0.0.1:${DASHBOARD_PORT:-8080}:80"
     
     volumes:
       # Servir los archivos del dashboard
@@ -74,7 +74,7 @@ services:
     restart: unless-stopped
     
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -87,22 +87,25 @@ services:
 
   # ── JUPYTER LAB ───────────────────────────────────────────
   jupyter:
-    image: jupyter/scipy-notebook:latest
+    image: quay.io/jupyter/scipy-notebook:x86_64-2026-09-01
     container_name: ai-security-jupyter
     
     ports:
-      - "8888:8888"
+      - "127.0.0.1:8888:8888"
     
     environment:
       - JUPYTER_ENABLE_LAB=yes
-      - JUPYTER_TOKEN=tfm2026
+      # Obligatorio y sin valor por defecto: docker/.env.example lo deja VACÍO a
+      # propósito para que compose se niegue a arrancar sin un token propio.
+      - JUPYTER_TOKEN=${JUPYTER_TOKEN:?Set JUPYTER_TOKEN in docker/.env}
       - OLLAMA_HOST=http://host.docker.internal:11434
-      - GRANT_SUDO=yes
     
     volumes:
       - ../notebooks:/home/jovyan/notebooks
       - ../lab:/home/jovyan/work/lab
       - ../lab/results:/home/jovyan/work/lab/results
+      # Auditoría 2026-09-17: el notebook 05 (y otros) usan ../lab desde notebooks/
+      - ../lab:/home/jovyan/lab
     
     # Para Linux: resuelve host.docker.internal a la IP del host
     extra_hosts:
@@ -121,24 +124,35 @@ services:
     container_name: ai-security-api
     
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     
     environment:
       - OLLAMA_HOST=http://host.docker.internal:11434
       - NUM_CTX=${NUM_CTX:-127000}
+      # Defensa live: bloqueo real de salidas "dangerous" (false = solo alerta)
+      - DEFENSE_BLOCK_DANGEROUS_OUTPUT=${DEFENSE_BLOCK_DANGEROUS_OUTPUT:-false}
+      - DEFENSE_STRICT_MODE=${DEFENSE_STRICT_MODE:-false}
+      # Revisiones de payload opcionales (p. ej. indirect_004=2). Vacío = revisión 1.
+      - PAYLOAD_REVISIONS=${PAYLOAD_REVISIONS:-}
+      - INDIRECT_SPOTLIGHTING=${INDIRECT_SPOTLIGHTING:-false}
+      # Orígenes CORS permitidos (dashboard)
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
       # GitHub Sync — token compartido del equipo TFM
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
       - GITHUB_REPO=${GITHUB_REPO:-alemeyerso/TFM-AI-Security-Lab}
       - GITHUB_BRANCH=${GITHUB_BRANCH:-main}
+      - ENABLE_GITHUB_SYNC=${ENABLE_GITHUB_SYNC:-false}
     
-    # Carga variables de docker/.env automáticamente
+    # Carga variables de .env automáticamente
     env_file:
-      - path: ./docker/.env
-        required: false   # no falla si no existe
+      - path: ./.env
+        required: false
     
     volumes:
-      # Montar lab/ para leer payloads y escribir resultados en tiempo real
-      - ../lab:/app/lab
+      # Auditoría 2026-09-17 (GAP-014): código y payloads en SOLO LECTURA;
+      # solo lab/results es escribible (resultados live y withheld/).
+      - ../lab:/app/lab:ro
+      - ../lab/results:/app/lab/results
     
     # Para Linux: resuelve host.docker.internal a la IP del host
     extra_hosts:
@@ -147,7 +161,7 @@ services:
     restart: unless-stopped
     
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -174,9 +188,9 @@ networks:
 #   docker compose -f docker/docker-compose.yml up -d api dashboard
 #
 # URLs de acceso:
-#   → Dashboard: http://localhost:8080
-#   → API Live:  http://localhost:8000/docs (Swagger UI)
-#   → Jupyter:   http://localhost:8888 (token: tfm2026)
+#   → Dashboard: http://127.0.0.1:8080
+#   → API Live:  http://127.0.0.1:8000/docs (Swagger UI)
+#   → Jupyter:   http://localhost:8888 (token definido en docker/.env)
 #
 # Ver logs en tiempo real:
 #   docker compose -f docker/docker-compose.yml logs -f api
@@ -190,5 +204,5 @@ networks:
 #
 # Ejecutar evaluación completa:
 #   docker compose -f docker/docker-compose.yml run --rm lab \
-#     python run_lab.py --model gemma4:e2b --vectors all
+#     python run_lab.py --model gemma4:e2b --all-vectors
 # =============================================================

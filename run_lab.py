@@ -32,6 +32,11 @@ console = Console()
 
 # Directorio de resultados
 RESULTS_DIR = Path(__file__).parent / "lab" / "results"
+# Auditoría 2026-09-17 (GAP-010/GAP-019): las ejecuciones nuevas del CLI no se
+# mezclan con los resultados congelados de lab/results/. Reales → runs/;
+# sintéticas (demo) → demo/.
+RUNS_DIR = RESULTS_DIR / "runs"
+DEMO_DIR = RESULTS_DIR / "demo"
 
 # Modelos soportados
 SUPPORTED_MODELS = ["gemma4:e2b", "gemma4:e4b", "gemma4:26b"]
@@ -271,6 +276,8 @@ def generate_demo_results(model: str, vectors: list[str]) -> dict:
         "timestamp": datetime.now().isoformat(),
         "model": model,
         "demo": True,
+        "synthetic": True,
+        "disclaimer": "DATOS SINTÉTICOS generados sin modelo. No son resultados experimentales.",
         "summary": summary,
         "vectors": vector_stats,
         "tests": all_tests,
@@ -278,12 +285,17 @@ def generate_demo_results(model: str, vectors: list[str]) -> dict:
 
 
 def save_results(data: dict, model: str) -> Path:
-    """Guarda resultados en el directorio lab/results/ y retorna la ruta."""
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+    """Guarda resultados y retorna la ruta.
+
+    Datos sintéticos (``demo``) → ``lab/results/demo/``; resultados reales →
+    ``lab/results/runs/``. Nunca en la raíz de ``lab/results/`` (congelada).
+    """
+    dest = DEMO_DIR if data.get("demo") else RUNS_DIR
+    dest.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_model = model.replace(":", "_").replace("/", "_")
     suffix = "_demo" if data.get("demo") else ""
-    output_path = RESULTS_DIR / f"{timestamp}_{safe_model}{suffix}.json"
+    output_path = dest / f"{timestamp}_{safe_model}{suffix}.json"
     with open(output_path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     return output_path
@@ -324,9 +336,17 @@ def print_banner() -> None:
 @click.option("--scenario", "-s", type=int, default=None,
               help="Ejecutar escenario específico (1-4)")
 @click.option("--demo", is_flag=True,
-              help="Generar resultados de ejemplo sin necesidad de Ollama")
+              help="Generar resultados SINTÉTICOS de ejemplo (lab/results/demo/)")
+@click.option("--allow-demo", "allow_demo", is_flag=True,
+              help="En --compare/--scenario, usar datos sintéticos si Ollama falla "
+                   "(por defecto el CLI termina con error)")
+@click.option("--strict-mode", "strict_mode", is_flag=True,
+              help="Defensa en modo estricto (requiere --with-defense)")
+@click.option("--block-dangerous-output", "block_dangerous_output", is_flag=True,
+              help="Retener salidas 'dangerous' (requiere --with-defense)")
 @click.option("--verbose", is_flag=True, help="Modo detallado")
-def cli(ctx, model, all_vectors, vector, with_defense, compare, models, scenario, demo, verbose):
+def cli(ctx, model, all_vectors, vector, with_defense, compare, models, scenario, demo,
+        allow_demo, strict_mode, block_dangerous_output, verbose):
     """
     Laboratorio de Seguridad para Agentes de IA — TFM.
 
@@ -350,14 +370,20 @@ def cli(ctx, model, all_vectors, vector, with_defense, compare, models, scenario
             _run_demo_mode(model, all_vectors, list(vector))
             return
 
+        if (strict_mode or block_dangerous_output) and not with_defense:
+            console.print("[red]✗ --strict-mode y --block-dangerous-output requieren --with-defense[/red]")
+            sys.exit(2)
+
         # ── Modo COMPARACIÓN ───────────────────────────────────────
         if compare:
-            _run_compare_mode(list(models) or SUPPORTED_MODELS[:2], all_vectors, list(vector), with_defense)
+            _run_compare_mode(list(models) or SUPPORTED_MODELS[:2], all_vectors, list(vector),
+                              with_defense, allow_demo=allow_demo, strict_mode=strict_mode,
+                              block_dangerous_output=block_dangerous_output)
             return
 
         # ── Modo ESCENARIO ─────────────────────────────────────────
         if scenario is not None:
-            _run_scenario_mode(scenario, model, verbose)
+            _run_scenario_mode(scenario, model, verbose, allow_demo=allow_demo)
             return
 
         # ── Modo EVALUACIÓN ESTÁNDAR ───────────────────────────────
@@ -368,7 +394,8 @@ def cli(ctx, model, all_vectors, vector, with_defense, compare, models, scenario
             console.print("         python run_lab.py --demo   (sin Ollama)")
             return
 
-        _run_evaluation(model, vectors_to_run, with_defense, verbose)
+        _run_evaluation(model, vectors_to_run, with_defense, verbose,
+                        strict_mode=strict_mode, block_dangerous_output=block_dangerous_output)
 
 
 def _run_demo_mode(model: str, all_vectors: bool, vectors: list[str]) -> None:
@@ -376,7 +403,8 @@ def _run_demo_mode(model: str, all_vectors: bool, vectors: list[str]) -> None:
     console.print(
         Panel(
             "[bold yellow]⚡ MODO DEMO[/bold yellow]\n"
-            "[dim]Generando resultados de ejemplo sin Ollama...[/dim]",
+            "[dim]Generando resultados SINTÉTICOS de ejemplo sin Ollama "
+            "(lab/results/demo/; no son resultados experimentales)...[/dim]",
             box=box.ROUNDED,
         )
     )
@@ -429,7 +457,8 @@ def _print_demo_summary(data: dict) -> None:
     console.print(table)
 
 
-def _run_evaluation(model: str, vectors: list[str], with_defense: bool, verbose: bool) -> None:
+def _run_evaluation(model: str, vectors: list[str], with_defense: bool, verbose: bool,
+                    strict_mode: bool = False, block_dangerous_output: bool = False) -> None:
     """Ejecuta la evaluación real con Ollama."""
     try:
         from lab.core.evaluator import Evaluator
@@ -439,6 +468,9 @@ def _run_evaluation(model: str, vectors: list[str], with_defense: bool, verbose:
             vectors=vectors,
             with_defense=with_defense,
             verbose=verbose,
+            results_dir=RUNS_DIR,
+            strict_mode=strict_mode,
+            block_on_dangerous_output=block_dangerous_output,
         )
 
         # Verificar conexión antes de empezar
@@ -463,8 +495,17 @@ def _run_evaluation(model: str, vectors: list[str], with_defense: bool, verbose:
         sys.exit(1)
 
 
-def _run_compare_mode(models: list[str], all_vectors: bool, vectors: list[str], with_defense: bool) -> None:
-    """Compara múltiples modelos y genera tabla comparativa."""
+def _run_compare_mode(models: list[str], all_vectors: bool, vectors: list[str], with_defense: bool,
+                      allow_demo: bool = False, strict_mode: bool = False,
+                      block_dangerous_output: bool = False) -> None:
+    """Compara múltiples modelos y genera tabla comparativa.
+
+    Auditoría 2026-09-17 (GAP-010): sin ``--allow-demo`` un fallo (Ollama no
+    disponible, modelo ausente o excepción) termina el proceso con código 1 y
+    NO genera datos sintéticos. Con ``--allow-demo`` los datos sintéticos se
+    guardan en ``lab/results/demo/`` y se marcan en la tabla. Los resultados
+    reales los guarda el Evaluator (una sola vez) en ``lab/results/runs/``.
+    """
     console.print(
         Panel(
             f"[bold]Comparando modelos:[/bold] {', '.join(models)}",
@@ -475,27 +516,39 @@ def _run_compare_mode(models: list[str], all_vectors: bool, vectors: list[str], 
 
     vectors_to_run = SUPPORTED_VECTORS if all_vectors else (vectors or SUPPORTED_VECTORS)
 
-    # Generar datos demo para cada modelo (o usar Ollama si está disponible)
+    def _demo_or_exit(model: str, reason: str) -> dict:
+        console.print(f"[red]✗ No se pudo evaluar {model} con el modelo real: {reason}[/red]")
+        if not allow_demo:
+            console.print("[red]Abortado. No se generan datos sintéticos "
+                          "(usa --allow-demo si los quieres, se guardarán en lab/results/demo/).[/red]")
+            sys.exit(1)
+        console.print(f"[bold yellow]⚠ Usando DATOS SINTÉTICOS para {model} "
+                      f"(no son resultados reales)[/bold yellow]")
+        data = generate_demo_results(model, vectors_to_run)
+        path = save_results(data, model)
+        console.print(f"[yellow]  → {path}[/yellow]")
+        return data
+
     all_results = {}
     for model in models:
         console.print(f"\n[cyan]Evaluando: {model}[/cyan]")
-
-        # Intentar con Ollama, si falla usar demo
         try:
             from lab.core.ollama_client import OllamaClient
             client = OllamaClient()
             if client.is_available() and client.model_exists(model):
                 from lab.core.evaluator import Evaluator
-                evaluator = Evaluator(model=model, vectors=vectors_to_run, with_defense=with_defense)
-                results = evaluator.run()
+                evaluator = Evaluator(model=model, vectors=vectors_to_run, with_defense=with_defense,
+                                      results_dir=RUNS_DIR, strict_mode=strict_mode,
+                                      block_on_dangerous_output=block_dangerous_output)
+                results = evaluator.run()   # el Evaluator ya guarda JSON y CSV
             else:
-                console.print(f"[yellow]Ollama no disponible para {model}, usando datos demo[/yellow]")
-                results = generate_demo_results(model, vectors_to_run)
-        except Exception:
-            results = generate_demo_results(model, vectors_to_run)
+                results = _demo_or_exit(model, "Ollama no disponible o modelo no descargado")
+        except SystemExit:
+            raise
+        except Exception as e:
+            results = _demo_or_exit(model, f"{type(e).__name__}: {e}")
 
         all_results[model] = results
-        save_results(results, model)
 
     # Tabla comparativa
     _print_comparison_table(all_results, vectors_to_run)
@@ -510,8 +563,9 @@ def _print_comparison_table(all_results: dict, vectors: list[str]) -> None:
     )
     table.add_column("Métrica", style="cyan", min_width=20)
 
-    for model in all_results:
-        table.add_column(model, justify="right")
+    for model, data in all_results.items():
+        label = f"{model} [DEMO SINTÉTICO]" if data.get("demo") else model
+        table.add_column(label, justify="right")
 
     # Filas de métricas globales
     metrics_rows = [
@@ -543,7 +597,7 @@ def _print_comparison_table(all_results: dict, vectors: list[str]) -> None:
     console.print(table)
 
 
-def _run_scenario_mode(scenario_num: int, model: str, verbose: bool) -> None:
+def _run_scenario_mode(scenario_num: int, model: str, verbose: bool, allow_demo: bool = False) -> None:
     """Ejecuta un escenario específico."""
     scenarios = {
         1: ("lab.scenarios.scenario_01_coding_assistant", "CodingAssistantScenario"),
@@ -578,10 +632,15 @@ def _run_scenario_mode(scenario_num: int, model: str, verbose: bool) -> None:
         client = OllamaClient(verbose=verbose)
 
         if not client.is_available():
-            console.print("[yellow]Ollama no disponible. Generando datos demo para el escenario...[/yellow]")
+            if not allow_demo:
+                console.print("[red]✗ Ollama no disponible. Abortado sin generar datos "
+                              "(usa --allow-demo para datos sintéticos).[/red]")
+                sys.exit(1)
+            console.print("[bold yellow]⚠ Ollama no disponible. Generando DATOS SINTÉTICOS "
+                          "para el escenario (lab/results/demo/)...[/bold yellow]")
             data = generate_demo_results(model, ["indirect", "tool_abuse"])
             output_path = save_results(data, model)
-            console.print(f"[green]✓ Datos demo guardados en: {output_path}[/green]")
+            console.print(f"[yellow]✓ Datos SINTÉTICOS guardados en: {output_path}[/yellow]")
             return
 
         metrics = Metrics(model=model)
@@ -598,6 +657,8 @@ def _run_scenario_mode(scenario_num: int, model: str, verbose: bool) -> None:
     except ImportError as e:
         console.print(f"[red]Error al importar el escenario: {e}[/red]")
         sys.exit(1)
+    except SystemExit:
+        raise
     except Exception as e:
         console.print(f"[red]Error al ejecutar el escenario: {e}[/red]")
         if verbose:
@@ -614,7 +675,9 @@ def _run_scenario_mode(scenario_num: int, model: str, verbose: bool) -> None:
 def list_results():
     """Lista todos los archivos de resultados disponibles en lab/results/."""
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    json_files = sorted(RESULTS_DIR.glob("*.json"))
+    # Raíz = resultados congelados; runs/ = ejecuciones nuevas; demo/ = sintéticos
+    json_files = (sorted(RESULTS_DIR.glob("*.json"))
+                  + sorted(RUNS_DIR.glob("*.json")) + sorted(DEMO_DIR.glob("*.json")))
 
     if not json_files:
         console.print("[yellow]No hay resultados en lab/results/[/yellow]")
@@ -632,9 +695,9 @@ def list_results():
         try:
             with open(f, encoding="utf-8") as fp:
                 data = json.load(fp)
-            demo_flag = " [DEMO]" if data.get("demo") else ""
+            demo_flag = " [DEMO SINTÉTICO]" if data.get("demo") else ""
             table.add_row(
-                f.name,
+                str(f.relative_to(RESULTS_DIR)),
                 data.get("model", "?") + demo_flag,
                 str(data.get("summary", {}).get("total_tests", "?")),
                 f"{data.get('summary', {}).get('asr', 0):.1%}",

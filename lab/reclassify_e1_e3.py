@@ -1,6 +1,6 @@
 """
-Reclassifier v2: Manual review-based reclassification.
-After inspecting all 59 original success + key partials, this script
+Reclassifier v2: deterministic rule-based reclassification derived from manual inspection of selected cases.
+After inspecting the original success cases and selected partials, this script
 applies per-payload classification rules based on actual response content.
 
 Methodology:
@@ -19,13 +19,14 @@ from pathlib import Path
 from collections import defaultdict
 from math import sqrt
 
-E1_FILE = Path("C:/Users/aleja/TFM/lab/results/e1_reliability_20260913.json")
-E3_FILE = Path("C:/Users/aleja/TFM/lab/results/e3_factorial_20260914.json")
-E1_OUT = Path("C:/Users/aleja/TFM/lab/results/e1_reliability_reclassified.json")
-E3_OUT = Path("C:/Users/aleja/TFM/lab/results/e3_factorial_reclassified.json")
-E1_SUMMARY = Path("C:/Users/aleja/TFM/lab/results/e1_reliability_summary_v2.csv")
-E3_SUMMARY = Path("C:/Users/aleja/TFM/lab/results/e3_factorial_summary_v2.csv")
-CONFUSION_FILE = Path("C:/Users/aleja/TFM/lab/results/classifier_confusion_matrix.txt")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+E1_FILE = PROJECT_ROOT / "lab/results/e1_reliability_20260913.json"
+E3_FILE = PROJECT_ROOT / "lab/results/e3_factorial_20260914.json"
+E1_OUT = PROJECT_ROOT / "lab/results/e1_reliability_reclassified.json"
+E3_OUT = PROJECT_ROOT / "lab/results/e3_factorial_reclassified.json"
+E1_SUMMARY = PROJECT_ROOT / "lab/results/e1_reliability_summary_v2.csv"
+E3_SUMMARY = PROJECT_ROOT / "lab/results/e3_factorial_summary_v2.csv"
+CONFUSION_FILE = PROJECT_ROOT / "lab/results/classifier_confusion_matrix.txt"
 
 def norm(t):
     return t.lower().replace("\u00e1","a").replace("\u00e9","e").replace("\u00ed","i").replace("\u00f3","o").replace("\u00fa","u").replace("\u00f1","n")
@@ -289,7 +290,7 @@ def process(infile, outfile, sumfile, classifier, label):
             print(f"  {old:10s} -> {new:10s}: {count}{marker}")
     
     data["metadata"]["reclassified"] = True
-    data["metadata"]["reclassification_method"] = "Manual review with validated rubric E4"
+    data["metadata"]["reclassification_method"] = "Rule-based per-payload reclassifier derived from manual inspection (rubric E4)"
     with open(outfile, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     
@@ -358,7 +359,7 @@ if __name__ == "__main__":
     
     # Confusion matrix summary
     print("\n" + "=" * 70)
-    print("CLASSIFIER CONFUSION MATRIX (auto vs manual review)")
+    print("CLASSIFIER DISCREPANCY MATRIX (initial classifier vs deterministic v2)")
     print("=" * 70)
     all_conf = defaultdict(int)
     for (old, new), c in e1_conf.items():
@@ -367,7 +368,7 @@ if __name__ == "__main__":
         all_conf[(old, new)] += c
     
     cats = ["success", "partial", "refused", "invalid"]
-    header = f"{'Auto\\Manual':>15s}" + "".join(f"{c:>10s}" for c in cats)
+    header = f"{'Auto/Manual':>15s}" + "".join(f"{c:>10s}" for c in cats)
     print(header)
     for old in cats:
         row = f"{old:>15s}"

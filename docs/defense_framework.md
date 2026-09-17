@@ -3,6 +3,15 @@
 **AI Security Lab · TFM 2025**  
 Marco para la evaluación y mitigación de ataques a agentes de IA
 
+> **Nota de auditoría (2026-09-17).** Este documento es un marco conceptual.
+> La eficacia cuantitativa de PromptGuard (tasa de bloqueo, falsos positivos,
+> ASR residual) **no se ha medido** en este laboratorio; las tablas con
+> porcentajes estimados de versiones anteriores se han retirado. El
+> comportamiento real implementado (detección, alerta y bloqueo) está descrito
+> en el `README.md` (sección «Sistema de defensas») y en
+> `audit/AUDIT_REPORT_2026-09-16.md`. En el código, *rechazo del modelo*
+> (`refused`) y *bloqueo de la defensa* (`blocked`) son estados distintos.
+
 ---
 
 ## Índice
@@ -157,11 +166,14 @@ def sanitize_external_content(content: str) -> str:
 
 ### Evaluación en el laboratorio
 
-| Técnica | Ataques bloqueados | Falsos positivos | Overhead |
-|---------|-------------------|-----------------|---------|
-| Detección de patrones | 35-45% | ~5% | Bajo |
-| Separación de contextos | 15-25% (reducción) | 0% | Bajo |
-| Sanitización externa | 40-60% (indirect) | ~2% | Medio |
+> **Estado:** en este TFM **no se ha medido** la eficacia de estas técnicas (tasa de bloqueo, falsos positivos, ASR residual). Una versión anterior de esta tabla incluía porcentajes sin respaldo en los datos del laboratorio y se han retirado. El único dato disponible es un piloto con e2b y n=1 (`lab/results/20260911_232050`, `_232629`, `_233517` y `_233742` `_gemma4_e2b.json`): PromptGuard bloqueó 2 de 39 prompts, ambos de inyección directa. No permite inferir eficacia. **Ese piloto se hizo con la versión de las defensas del 11/09**; los módulos `lab/defenses/*` se reescribieron el 16/09 (umbrales, normalización, bloqueo de salida opcional), así que sus cifras no describen el código actual.
+
+| Técnica | Implementación en el laboratorio | Estado |
+|---------|----------------------------------|--------|
+| Detección de patrones | `lab/defenses/input_sanitizer.py` (regex) | Implementada, no evaluada |
+| Separación de contextos | `lab/server.py` (`INDIRECT_SPOTLIGHTING=true`) | Implementada (opcional), no evaluada |
+| Sanitización externa | Descrita en esta guía | No implementada |
+| Validación de salida | `lab/defenses/output_validator.py` | Implementada, no evaluada |
 
 ### Limitaciones
 
@@ -612,33 +624,18 @@ class HumanInTheLoop:
 
 | Métrica | Fórmula | Interpretación |
 |---------|---------|----------------|
-| **ASR** | successful_attacks / total_tests | % de ataques exitosos (menor = mejor) |
-| **Partial ASR** | partial_attacks / total_tests | % de ataques parcialmente exitosos |
-| **Refusal Rate** | refused / total_tests | % de ataques bloqueados (mayor = mejor) |
-| **Defense Effectiveness** | defense_blocked / defense_applied | Efectividad de las defensas activadas |
+| **ASR** | successful_attacks / valid_tests | % de ataques exitosos (menor = mejor). `valid_tests` = success + partial + refused + blocked; los `error` se excluyen del denominador y se informan aparte (`error_tests`) |
+| **Partial ASR** | partial_attacks / valid_tests | % de ataques parcialmente exitosos |
+| **Refusal Rate** | refused / valid_tests | % de ataques **rechazados por el modelo** (no incluye bloqueos de la defensa) |
+| **Block Rate** | blocked / valid_tests | % de ataques **bloqueados por la defensa** (entrada, o salida si se activa) |
+| **Defense Effectiveness** | defense_blocked / defense_applied | Proporción de bloqueos reales cuando la defensa estaba activa (una alerta no cuenta) |
 | **False Positive Rate** | false_blocks / legitimate_requests | Impacto en usabilidad legítima |
 
-### Efectividad esperada por nivel defensivo
+### Efectividad de las defensas
 
-| Nivel | Defensa activa | ASR esperado | Refusal Rate esperado |
-|-------|---------------|-------------|----------------------|
-| 0 | Ninguna | 60-80% | <20% |
-| 1 | Instrucciones de sistema | 40-60% | 20-40% |
-| 2 | + Validación de entrada | 25-40% | 35-55% |
-| 3 | + Filtrado + Mínimo privilegio | 15-25% | 55-75% |
-| 4 | + Monitorización activa | 10-20% | 65-80% |
-| 5 | + HITL crítico | 5-15% | 75-90% |
-
-> [!NOTE]
-> Los valores anteriores son estimaciones basadas en los experimentos del laboratorio. Los resultados reales dependen del modelo específico, la calidad del entrenamiento de alineación y la sofisticación del atacante.
-
-### Benchmarking de modelos del laboratorio
-
-| Modelo | Sin defensas (ASR) | Con defensas nivel 3 (ASR) | Mejora |
-|--------|-------------------|---------------------------|--------|
-| gemma4:e2b | 42.9% | ~18% (estimado) | ~57% |
-| gemma4:e4b | 28.6% | ~12% (estimado) | ~58% |
-| gemma4:26b | 14.3% | ~6% (estimado) | ~58% |
+> **No hay datos de eficacia.** Una versión anterior de este documento incluía una tabla de «ASR esperado por nivel defensivo» y otra de «benchmarking con defensas nivel 3» (p. ej., e2b 42,9 % → ~18 %). Esas cifras **no proceden de ningún experimento del laboratorio** y no coinciden con los resultados congelados (batería n=1: e2b 25,0 %, e4b 25,0 %, 26b 11,1 %; E1 v3: 9,7 % en ambos modelos densos), así que se han retirado.
+>
+> Para medir la eficacia haría falta, por cada vector: ASR sin defensa frente a ASR con PromptGuard, tasa de bloqueo y falsos positivos sobre la batería benigna, con repeticiones e IC. Queda como trabajo futuro (§7.3 de la memoria).
 
 ---
 
