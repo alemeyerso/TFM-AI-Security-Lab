@@ -192,16 +192,4 @@ python docs/generate_tfm.py
 ```
 Genera `docs/TFM_Final.docx` con todas las tablas y datos actualizados.
 
-## Presentación
-
-Las slides están en GitHub Pages:
-- Con guion: https://alemeyerso.github.io/TFM-AI-Security-Lab/presentacion/
-- Modo limpio: https://alemeyerso.github.io/TFM-AI-Security-Lab/presentacion/?present
-
-## Demo en vivo del ataque E2
-
-```bash
-python presentacion/demo_record.py
-```
-Ejecuta un ataque de inyección indirecta real contra gemma4:e2b y muestra el `TOOL_CALL: send_email` en la terminal.
 
